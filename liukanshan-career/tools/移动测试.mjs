@@ -1,0 +1,25 @@
+﻿import puppeteer from "puppeteer-core";
+const EDGE = "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe";
+const sleep = (ms) => new Promise((d) => setTimeout(d, ms));
+const browser = await puppeteer.launch({ executablePath: EDGE, headless: true,
+  args: ["--no-sandbox","--enable-unsafe-swiftshader","--use-angle=swiftshader"] });
+const page = await browser.newPage();
+await page.setViewport({ width: 1200, height: 800 });
+await page.goto("http://127.0.0.1:5273/", { waitUntil: "networkidle2" });
+await page.waitForSelector(".frame canvas");
+await sleep(1200);
+const btn = await page.$(".modal button"); if (btn) await btn.click();
+await sleep(800);
+const probe = () => page.evaluate(() => window.__lksProbe());
+const a = await probe();
+await page.keyboard.down("d"); await sleep(800); await page.keyboard.up("d");
+await sleep(200);
+const b = await probe();
+await page.keyboard.down("s"); await sleep(800); await page.keyboard.up("s");
+await sleep(200);
+const c = await probe();
+console.log(`起点 (${a.x.toFixed(0)}, ${a.y.toFixed(0)})`);
+console.log(`按 D 后 (${b.x.toFixed(0)}, ${b.y.toFixed(0)})  → x 变化 ${(b.x-a.x).toFixed(0)}`);
+console.log(`按 S 后 (${c.x.toFixed(0)}, ${c.y.toFixed(0)})  → y 变化 ${(c.y-b.y).toFixed(0)}`);
+console.log(`状态：running=${c.running} 交付=${c.delivered} 最近工位=${c.nearest}`);
+await browser.close();

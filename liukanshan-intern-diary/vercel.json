@@ -1,0 +1,12 @@
+{
+  "framework": null,
+  "cleanUrls": true,
+  "headers": [
+    {
+      "source": "/game/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    }
+  ]
+}

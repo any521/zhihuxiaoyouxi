@@ -1,0 +1,19 @@
+{
+  "name": "liukanshan-intern-diary",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Zhihu Hackathon 2026 - Liu Kanshan's Intern Diary",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0",
+    "vercel": "^44.0.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

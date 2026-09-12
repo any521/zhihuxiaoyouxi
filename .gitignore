@@ -1,0 +1,43 @@
+# ───────── 依赖 ─────────
+node_modules/
+.pnpm-store/
+
+# ───────── 本地缓存（体积大、可重建）─────────
+.npm-cache/
+.npm/
+
+# ───────── 构建产物 ─────────
+dist/
+build/
+*.tsbuildinfo
+
+# ───────── 旧 Godot 参考工程：只留源码，不留构建产物与缓存 ─────────
+liukanshan-intern-diary/.godot/
+liukanshan-intern-diary/public/game/
+liukanshan-intern-diary/export_templates/
+liukanshan-intern-diary/android/
+liukanshan-intern-diary/ios/
+liukanshan-intern-diary/web/
+
+# ───────── 自动化测试截图（可随时重跑生成）─────────
+liukanshan-career/tools/shots/
+
+# ───────── 本地编辑器 / 工具配置 ─────────
+.claude/
+.vscode/
+.idea/
+
+# ───────── 素材后处理中间产物（可以从原图重跑）─────────
+美术/素材库/成品/_示例_基准图转像素画/
+美术/素材库/成品/_剪影测试/
+美术/素材库/成品/_瓦片平铺测试/
+
+# ───────── 系统垃圾 ─────────
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# ───────── 日志 ─────────
+*.log
+npm-debug.log*
+pnpm-debug.log*

@@ -1,0 +1,940 @@
+﻿:root {
+  --ink: #10141c;
+  --paper: #fbf7ef;
+  --line: #2b3444;
+  --zhihu: #0066ff;
+  --warn: #ff6b4a;
+  --ok: #4fa86c;
+  --gold: #ffb020;
+  --violet: #7c4dff;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  /* 主题化底色：深暖灰 + 极淡的斜纹，比纯黑有质感，也不抢画布 */
+  background-color: #14161c;
+  background-image:
+    repeating-linear-gradient(
+      135deg,
+      rgba(255, 255, 255, 0.014) 0 2px,
+      rgba(0, 0, 0, 0) 2px 6px
+    ),
+    radial-gradient(120% 90% at 50% 0%, #22283a 0%, #14161c 62%, #0d0f14 100%);
+  color: #e8eef8;
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  overflow: hidden;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.frame {
+  position: relative;
+  flex: none;
+  /* 画布当成一块"屏幕"：细边框 + 外发光 + 投影，让它看起来是设计过的，不是飘在黑里 */
+  border: 1px solid #3a4358;
+  border-radius: 4px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.6),
+    0 0 0 6px rgba(20, 22, 28, 0.9),
+    0 18px 50px rgba(0, 0, 0, 0.55),
+    0 0 60px rgba(74, 143, 212, 0.07);
+}
+
+.frame canvas,
+#game-root {
+  position: absolute;
+  inset: 0;
+}
+
+.frame canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.debug-tag {
+  font-size: 11px;
+  color: #5c6a7e;
+  letter-spacing: 0.04em;
+}
+
+/* ───────── 全局布局：顶栏 + 左右边栏 + 中间画布 ───────── */
+
+.stage-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 0 18px;
+}
+
+/* 边栏占位：宽度 = 左右黑边宽，内容按内容宽度居中 */
+.rail-holder {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.rail {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 100%;
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* 顶栏：章节标题 + 当前指令（指令是任务说明的主体，字号最大） */
+.topbar {
+  flex: none;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 22px 12px;
+  border-bottom: 1px solid #262d3c;
+  background: linear-gradient(180deg, rgba(30, 36, 50, 0.65), rgba(20, 22, 28, 0));
+}
+
+.chapter {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.chapter-tag {
+  font-size: 10.5px;
+  letter-spacing: 0.2em;
+  color: #7d8ba1;
+}
+
+.chapter b {
+  font-size: 14px;
+  color: #cdd8e8;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 当前指令条：金色高亮 + 大字号，一眼就知道现在该干嘛 */
+.objective {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 22px;
+  border: 1px solid #3d4a5e;
+  border-radius: 999px;
+  background: rgba(26, 32, 44, 0.9);
+  font-size: 16px;
+  font-weight: 700;
+  color: #e8eef8;
+  white-space: nowrap;
+}
+
+.objective.live {
+  border-color: #7a5a1e;
+  background: linear-gradient(180deg, rgba(58, 45, 20, 0.92), rgba(36, 29, 16, 0.92));
+  color: #ffd18a;
+  box-shadow: 0 0 18px rgba(255, 176, 32, 0.16);
+}
+
+.objective img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+}
+
+.topright {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border: 1px solid #2c3646;
+  border-radius: 999px;
+  background: rgba(18, 22, 30, 0.8);
+  font-size: 12px;
+  color: #9fb0c6;
+  white-space: nowrap;
+}
+
+.pill b {
+  color: #e8eef8;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill img {
+  width: 14px;
+  height: 14px;
+  image-rendering: pixelated;
+}
+
+.pill.on {
+  border-color: #6b5420;
+  color: var(--gold);
+}
+
+.pill .hot,
+.hot {
+  color: var(--warn);
+}
+
+/* 边栏里的任务卡：目标写清楚，进度用点阵 */
+.ticket .goal {
+  font-size: 13px;
+  font-weight: 700;
+  color: #e8eef8;
+  margin-bottom: 8px;
+}
+
+.ticket .count {
+  margin-top: 8px;
+  color: #8fa2bb;
+  font-size: 12px;
+}
+
+.ticket .count b {
+  color: #e8eef8;
+  font-size: 14px;
+}
+
+.ticket .rule {
+  margin-top: 6px;
+  color: #5c6a7e;
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.panel h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel h4 img {
+  width: 14px;
+  height: 14px;
+  image-rendering: pixelated;
+}
+
+/* 三步流程 */
+.steps ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #9fb0c6;
+}
+
+.steps li img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.steps li b {
+  color: #e8eef8;
+}
+
+.carry {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #8fa2bb;
+}
+
+.carry.on {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.help {
+  font-size: 12px;
+  color: #9fb0c6;
+}
+
+.help-row {
+  margin-top: 6px;
+}
+
+/* 窄屏：上下两条窄栏 */
+.hud-narrow {
+  width: 100%;
+}
+
+.compact-top {
+  margin: 0 10px 6px;
+}
+
+.compact-bottom {
+  margin: 6px 10px 0;
+}
+
+.compact-bottom img {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+  flex: none;
+}
+
+.toasts {
+  position: fixed;
+  /* 压在指令条下方，不要盖住"现在该干嘛" */
+  top: 108px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* 手机竖屏的紧凑 HUD：上下两条窄栏，尽量不埋住游戏画面 */
+.hud-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.hud-bar b {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+.hud-bar .hot {
+  color: var(--gold);
+}
+
+.hud-bar .dim {
+  color: #6e7686;
+  margin-left: auto;
+}
+
+.compact-toast {
+  max-width: 100%;
+  font-size: 11px;
+  padding: 5px 8px;
+}
+
+/* Phaser 画布：整数倍放大 + 最近邻采样，这是像素完美的基础 */
+.stage canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  box-shadow: 0 0 0 1px #1b2230, 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* HUD 覆盖层跟随画布尺寸，用 CSS 变量给出 */
+.hud {
+  position: absolute;
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+.panel {
+  background: rgba(12, 16, 24, 0.86);
+  border: 1px solid #26313f;
+  border-radius: 8px;
+  padding: 8px 10px;
+  backdrop-filter: blur(2px);
+}
+
+.ticket {
+  width: 150px;
+}
+
+.pip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 14px);
+  gap: 6px;
+}
+
+.ticket h4,
+.slot h4 {
+  margin: 0 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: #8fa2bb;
+  font-weight: 700;
+}
+
+.ticket-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
+  border-bottom: 1px dashed #26313f;
+}
+
+.ticket-row:last-child {
+  border-bottom: 0;
+}
+
+.ticket-row.done {
+  color: #5c6a7e;
+  text-decoration: line-through;
+}
+
+.pip {
+  width: 10px;
+  height: 10px;
+  border: 1px solid #6f8098;
+  border-radius: 2px;
+  flex: none;
+}
+
+.pip.on {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.timer {
+  font-variant-numeric: tabular-nums;
+  font-size: 22px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.timer.low {
+  color: var(--warn);
+}
+
+.bar {
+  margin-top: 4px;
+  height: 6px;
+  background: #1b2230;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.bar > i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #338aff, #7fb8ff);
+}
+
+.slot {
+  width: 196px;
+}
+
+.card {
+  border: 1px solid #3b2f6b;
+  border-radius: 8px;
+  background: linear-gradient(160deg, #1d1836, #12101f);
+  padding: 8px;
+}
+
+.card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-name {
+  font-weight: 700;
+  color: #d9ccff;
+}
+
+.tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+
+.tag.type {
+  color: #9ecbff;
+}
+
+.tag.rarity {
+  color: #ffd18a;
+}
+
+.card-desc {
+  margin-top: 6px;
+  color: #a99fd0;
+  font-size: 11px;
+}
+
+.card-locked {
+  margin-top: 6px;
+  color: #6a6188;
+  font-size: 11px;
+}
+
+.hint {
+  color: #9fb0c6;
+}
+
+.hint kbd {
+  display: inline-block;
+  min-width: 18px;
+  padding: 1px 5px;
+  margin: 0 2px;
+  border: 1px solid #3a4557;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #171d27;
+  font-family: inherit;
+  font-size: 11px;
+  text-align: center;
+}
+
+.toasts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.toast {
+  background: rgba(12, 16, 24, 0.9);
+  border-left: 3px solid var(--zhihu);
+  border-radius: 6px;
+  padding: 6px 10px;
+  max-width: 260px;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 6, 11, 0.78);
+  padding: 16px;
+}
+
+.modal {
+  width: min(420px, 92vw);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  background: #0c1018;
+  border: 1px solid #26313f;
+  border-radius: 12px;
+  padding: 20px 22px;
+}
+
+.modal h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.modal p {
+  margin: 0 0 14px;
+  color: #97a6bb;
+  font-size: 12px;
+}
+
+.modal ul {
+  margin: 0 0 14px;
+  padding-left: 18px;
+  color: #b9c6d8;
+  font-size: 12px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border-radius: 8px;
+  border: 1px solid #2f6bd8;
+  background: linear-gradient(180deg, #1f6bff, #0a4fd0);
+  color: #fff;
+  padding: 9px 16px;
+  font-weight: 600;
+}
+
+button.ghost {
+  background: #141a24;
+  border-color: #2c3646;
+  color: #c6d2e2;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rating {
+  font-size: 44px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.rating.S {
+  color: var(--gold);
+}
+
+.rating.A {
+  color: var(--ok);
+}
+
+.rating.B {
+  color: #7fb8ff;
+}
+
+.rating.C {
+  color: #8b98a9;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 12px 0 16px;
+  font-size: 12px;
+  color: #97a6bb;
+  white-space: nowrap;
+}
+
+.metrics b {
+  color: #e8eef8;
+  font-size: 15px;
+}
+
+/* 窄屏画布下方的任务区：填补 ×1 缩放留下的空白 */
+.compact-foot {
+  flex: none;
+  width: 100%;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 8px 12px 0;
+}
+
+.compact-foot .panel {
+  flex: 0 1 auto;
+}
+
+.compact-foot .ticket {
+  width: auto;
+  min-width: 180px;
+}
+
+.compact-foot .steps ol {
+  flex-direction: row;
+  gap: 12px;
+}
+
+.compact-foot .pip {
+  width: 13px;
+  height: 13px;
+}
+/* ───────── 订单条（顶部，替代原来的金色指令条） ───────── */
+
+.orders {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  justify-content: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.order-empty {
+  color: #5c6a7e;
+  font-size: 12.5px;
+  padding: 10px 4px;
+}
+
+.order {
+  min-width: 132px;
+  padding: 6px 9px 7px;
+  border: 1px solid #3a4658;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(34, 41, 56, 0.95), rgba(22, 26, 36, 0.95));
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.order-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.order-top b {
+  font-size: 12.5px;
+  color: #e8eef8;
+}
+
+.order-ind {
+  font-size: 10px;
+  color: #6e7d92;
+}
+
+.order-pts {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--gold);
+  font-variant-numeric: tabular-nums;
+}
+
+.order-steps {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.gtag {
+  font-size: 11px;
+  line-height: 1.35;
+  padding: 1px 7px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: background 0.12s, color 0.12s;
+}
+
+.chapter-sub {
+  font-size: 11px;
+  color: #7d8ba1;
+}
+
+.chapter-sub b {
+  color: #e8eef8;
+}
+
+.chapter-sub .fail {
+  color: var(--warn);
+}
+
+/* ───────── 左右边栏的面板 ───────── */
+
+.story-line {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffd18a;
+  line-height: 1.5;
+}
+
+.carry-name {
+  font-size: 12.5px;
+  color: #e8eef8;
+  margin-bottom: 6px;
+}
+
+.carry-hint,
+.carry-empty {
+  margin-top: 6px;
+  font-size: 11px;
+  color: #6e7d92;
+}
+
+.ground-list {
+  margin: 0;
+  padding-left: 16px;
+  font-size: 11.5px;
+  color: #9fb0c6;
+}
+
+.rule-panel .rule {
+  font-size: 11px;
+  color: #7d8ba1;
+  line-height: 1.45;
+}
+
+/* ───────── 工位名牌（HTML 渲染，保证清晰） ───────── */
+
+.station-label {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(20, 22, 28, 0.86);
+  border: 1px solid #3a4658;
+  color: #e8eef8;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+
+.station-label.machine {
+  border-color: #6b5420;
+  color: #ffd18a;
+}
+
+/* ───────── 手机：订单条横排可滑动 ───────── */
+
+.compact-orders {
+  display: flex;
+  gap: 8px;
+  padding: 0 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.compact-orders::-webkit-scrollbar {
+  display: none;
+}
+
+.compact-orders .order {
+  flex: 0 0 auto;
+  min-width: 124px;
+}
+
+/* ───────── 暂停菜单 ───────── */
+
+.modal.pause {
+  width: min(620px, calc(100vw - 40px));
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  text-align: left;
+}
+
+.modal.pause h2 {
+  margin-bottom: 12px;
+}
+
+.modal.pause h3 {
+  margin: 14px 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  color: #8fa2bb;
+}
+
+.modal.pause section:first-of-type h3 {
+  margin-top: 0;
+}
+
+.manual {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #cdd8e8;
+}
+
+.manual li {
+  margin-bottom: 4px;
+}
+
+.manual li b {
+  color: #ffd18a;
+}
+
+.keys {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12.5px;
+  color: #cdd8e8;
+}
+
+.keys > div {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.keys span {
+  color: #9fb0c6;
+  margin-left: 4px;
+}
+
+.pause-progress {
+  font-size: 13px;
+  color: #cdd8e8;
+}
+
+.pause-progress b {
+  color: var(--gold);
+  font-size: 15px;
+}
+
+button.ghost {
+  background: transparent;
+  border: 1px solid #3a4658;
+  color: #9fb0c6;
+}
+
+button.ghost:hover {
+  border-color: #5a6a80;
+  color: #e8eef8;
+}
+
+.pause-note {
+  margin: 14px 0 0;
+  font-size: 11.5px;
+  color: #6e7d92;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+}
+
+.pause-note img {
+  width: 15px;
+  height: 15px;
+  image-rendering: pixelated;
+  flex: none;
+  margin-top: 1px;
+}
