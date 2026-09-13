@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 开场动画 + 微信式 AVG 的样式。
  *
  * 配色（2026-09-13 改）：**米白为主 + 绿色点缀**，浅色主题。
@@ -988,6 +988,19 @@
   border-top: 2px solid var(--line);
   border-bottom: 2px solid var(--line);
   animation: bubble-in 0.34s both;
+}
+
+/* 时间提示：聊天流里正中一行小灰字。**不要边框、不要底色**，
+   要和"系统消息"区分开 —— 它是"定位"，不是"消息"。
+   （用户要求：AVG 只显示时间提示，不显示旁白） */
+.wc-time {
+  align-self: center;
+  margin: 2px 0;
+  padding: 2px 10px;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: rgba(120, 110, 92, 0.75);
+  animation: bubble-in 0.3s both;
 }
 
 .wc-metric {
