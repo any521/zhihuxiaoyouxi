@@ -19,7 +19,7 @@ import {
   地图高,
   格,
   网格,
-  瓦片,
+  挡路瓦片,
   交互点表,
   道具表,
   占地表,
@@ -118,12 +118,18 @@ export class OfficeMapScene extends Phaser.Scene {
 
   preload(): void {
     const 基 = 'assets/map/';
+    // ⚠️ 顺序必须和 level.ts 的 瓦片 枚举一一对应
     for (const [i, 名] of [
-      'tile_carpet',
+      'tile_carpet_grey',
+      'tile_carpet_dark',
+      'tile_antislip',
+      'tile_polished',
+      'tile_tile',
+      'tile_wood',
       'tile_wall',
       'tile_glass',
-      'tile_wood',
-      'tile_tile',
+      'tile_door_h',
+      'tile_door_v',
       'tile_desk',
     ].entries()) {
       this.load.image(`t${i}`, `${基}${名}.png`);
@@ -161,14 +167,7 @@ export class OfficeMapScene extends Phaser.Scene {
 
   /** 把 6 张瓦片拼成一张 6 格的 tileset 贴图 */
   private 建瓦片集(): void {
-    const 序 = [
-      't0',
-      't1',
-      't2',
-      't3',
-      't4',
-      't5',
-    ];
+    const 序 = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10'];
     const cv = document.createElement('canvas');
     cv.width = 格 * 序.length;
     cv.height = 格;
@@ -192,7 +191,8 @@ export class OfficeMapScene extends Phaser.Scene {
     if (!layer) throw new Error('图层创建失败');
     this.图层 = layer as Phaser.Tilemaps.TilemapLayer;
     // 墙和玻璃挡路（地毯/木地板/地砖/桌面不挡）
-    this.图层.setCollision([瓦片.白墙, 瓦片.玻璃]);
+    // 墙和玻璃挡路；**门是通行的**（门洞要能走过去）
+    this.图层.setCollision(挡路瓦片);
     this.图层.setDepth(-100);
   }
 

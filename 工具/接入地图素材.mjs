@@ -21,12 +21,18 @@ const 游戏 = (...p) => join(根, 'liukanshan-career/public/assets', ...p);
 const 映射 = [];
 
 /* ── 一、瓦片 ── */
+// ⚠️ 顺序必须和 level.ts 的 瓦片 枚举一一对应
 const 瓦片 = [
-  ['瓦片v2/瓦片_地面_办公地毯.png', 'map/tile_carpet.png'],
+  ['瓦片v2/瓦片_地面_浅灰地毯.png', 'map/tile_carpet_grey.png'],
+  ['瓦片v2/瓦片_地面_深灰地毯.png', 'map/tile_carpet_dark.png'],
+  ['瓦片v2/瓦片_地面_防滑砖.png', 'map/tile_antislip.png'],
+  ['瓦片v2/瓦片_地面_抛光砖.png', 'map/tile_polished.png'],
   ['瓦片v2/瓦片_地面_走廊地砖.png', 'map/tile_tile.png'],
   ['瓦片v2/瓦片_地面_木地板.png', 'map/tile_wood.png'],
   ['瓦片v2/瓦片_墙面_办公白墙.png', 'map/tile_wall.png'],
   ['瓦片v2/瓦片_墙面_玻璃隔断.png', 'map/tile_glass.png'],
+  ['瓦片v2/瓦片_门_横.png', 'map/tile_door_h.png'],
+  ['瓦片v2/瓦片_门_竖.png', 'map/tile_door_v.png'],
   ['瓦片v2/瓦片_台面_木质桌面.png', 'map/tile_desk.png'],
 ];
 映射.push(...瓦片);
