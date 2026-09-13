@@ -200,25 +200,59 @@
   border-right: 2px solid var(--green-2);
 }
 
+/* 功能栏上的按钮：把 <button> 的浏览器默认样式全部清掉。
+   ⚠️ 不清的话会出现蓝底方块 + 默认 padding 把图标顶出格子（实测踩过）。 */
+.wc-rail button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.wc-me {
+  display: block;
+  width: 46px;
+  height: 46px;
+  line-height: 0;
+}
+
+.wc-me .wc-face {
+  width: 46px;
+  height: 46px;
+}
+
 .wc-rail-icons {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   margin-top: 6px;
 }
 
 .wc-icon {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
-  opacity: 0.65;
+  opacity: 0.62;
+  border: 2px solid transparent;
+  transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s, opacity 0.14s;
 }
 
+.wc-icon:hover {
+  opacity: 1;
+  background: rgba(47, 93, 58, 0.45);
+}
+
+/* 选中态：高亮墨绿（不是蓝、也不是白） */
 .wc-icon.on {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.22);
-  outline: 2px solid rgba(255, 255, 255, 0.5);
+  background: var(--green-2); /* #2f5d3a 墨绿 */
+  border-color: var(--green-4);
 }
 
 .wc-icon.bottom {
@@ -227,11 +261,17 @@
 
 /* 图标素材是深色的，放在绿底上要反白 */
 .wc-icon img {
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   image-rendering: pixelated;
   filter: invert(1) brightness(2);
+}
+
+.wc-icon:focus-visible,
+.wc-me:focus-visible {
+  outline: 3px solid var(--green-4);
+  outline-offset: 2px;
 }
 
 /* ── 会话列表（宽度由拖拽决定，不用固定值）── */
@@ -398,17 +438,184 @@
   color: var(--ink);
 }
 
-.wc-list-icons {
+/* 搜索按钮：原来 🔍 和 ⋯ 都只是装饰，现在 🔍 是真的搜索，⋯ 已去掉 */
+.wc-list-search {
   margin-left: auto;
-  display: flex;
-  gap: 10px;
-  opacity: 0.55;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  appearance: none;
+  border: 2px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s, opacity 0.14s;
 }
 
-.wc-list-icons img {
-  width: 16px;
-  height: 16px;
+.wc-list-search img {
+  width: 17px;
+  height: 17px;
   image-rendering: pixelated;
+}
+
+.wc-list-search:hover {
+  opacity: 1;
+  background: var(--green-4);
+  border-color: var(--green-2);
+}
+
+.wc-list-search:active {
+  transform: translateY(2px);
+}
+
+.wc-list-search:focus-visible {
+  outline: 3px solid var(--green-2);
+  outline-offset: 2px;
+}
+
+/* ── 搜索态：顶栏变成输入框 ── */
+
+.wc-list-head.search {
+  gap: 8px;
+}
+
+.wc-search-input {
+  flex: 1;
+  min-width: 0;
+  font-family: inherit;
+  font-size: 24px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--green-2);
+  padding: 6px 10px;
+  outline: none;
+}
+
+.wc-search-input::placeholder {
+  color: #a89b86;
+}
+
+.wc-search-cancel {
+  flex: none;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--line);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s;
+}
+
+.wc-search-cancel:hover {
+  background: var(--green-4);
+  border-color: var(--green-2);
+}
+
+.wc-search-cancel:active {
+  transform: translateY(2px);
+}
+
+.wc-search-cancel:focus-visible {
+  outline: 3px solid var(--green-2);
+  outline-offset: 2px;
+}
+
+/* ── 搜索结果 ── */
+
+.wc-search-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0 14px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(36, 26, 18, 0.25) transparent;
+}
+
+.wc-search-tip {
+  padding: 22px 16px;
+  font-size: 12px;
+  line-height: 2;
+  color: var(--ink-2);
+}
+
+.wc-search-group {
+  margin-bottom: 10px;
+}
+
+.wc-search-group-title {
+  font-size: 12px;
+  color: var(--ink-2);
+  letter-spacing: 0.08em;
+  padding: 8px 12px 6px;
+  border-bottom: 2px solid var(--line);
+}
+
+.wc-search-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  text-align: left;
+  font-family: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--line);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background-color 0.14s;
+}
+
+.wc-search-row:hover {
+  background: var(--green-4);
+}
+
+.wc-search-row:active {
+  transform: translateY(2px);
+}
+
+.wc-search-row:focus-visible {
+  outline: 3px solid var(--green-2);
+  outline-offset: -3px;
+}
+
+.wc-search-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wc-search-text b {
+  font-size: 24px;
+  font-weight: normal;
+}
+
+.wc-search-sub {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.wc-search-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+/* 命中的词高亮 */
+.wc-hit {
+  background: var(--green-4);
+  color: var(--ink);
+  padding: 0 2px;
+}
+
+.wc-search-more {
+  font-size: 12px;
+  color: var(--ink-2);
+  padding: 10px 12px;
 }
 
 /* 指标条：白底绿框，像三枚小徽章 */

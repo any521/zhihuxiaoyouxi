@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -152,8 +152,7 @@ function 群头({ 成员, 尺寸 = 40 }: { 成员?: 说话人[]; 尺寸?: number
 }
 
 /** 会话列表里的一行 */
-function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; 点: () => void }): ReactElement {
-  const 最后 = [...会话.条目].reverse().find((x) => x.种类 !== '输入中');
+function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; 点: () => void }): ReactElement {  const 最后 = [...会话.条目].reverse().find((x) => x.种类 !== '输入中');
   let 预览 = '';
   if (最后) {
     if (最后.种类 === '消息') 预览 = 最后.文本;
@@ -277,6 +276,140 @@ function 一条({ 项, 群聊 }: { 项: 渲染项; 群聊: boolean }): ReactElem
   }
 }
 
+/** 把命中的词包一层高亮 */
+function 高亮({ 文本, 词 }: { 文本: string; 词: string }): ReactElement {
+  if (!词) return <>{文本}</>;
+  const 段 = 文本.split(词);
+  return (
+    <>
+      {段.map((s, i) => (
+        <span key={i}>
+          {s}
+          {i < 段.length - 1 ? <mark className="wc-hit">{词}</mark> : null}
+        </span>
+      ))}
+    </>
+  );
+}
+
+/** 一条可搜索的条目（把会话里的各类条目拍平成纯文本） */
+function 条目文本(项: 渲染项): string {
+  switch (项.种类) {
+    case '消息':
+      return 项.文本;
+    case '贴纸':
+      return `[贴纸] ${项.贴纸}`;
+    case '系统':
+    case '旁白':
+      return 项.文本;
+    case '邀请':
+      return `[群邀请] ${项.标题}`;
+    case '知乎卡':
+      return `[知乎卡] ${项.卡片.主题}${项.卡片.标题 ? ' ' + 项.卡片.标题 : ''}`;
+    case '指标': {
+      const 片: string[] = [];
+      if (项.变动.信任) 片.push(`老板信任 ${项.变动.信任}`);
+      if (项.变动.协作) 片.push(`团队协作 ${项.变动.协作}`);
+      if (项.变动.成长) 片.push(`职业成长 ${项.变动.成长}`);
+      return 片.join(' ');
+    }
+    default:
+      return '';
+  }
+}
+
+/**
+ * 聊天记录搜索。
+ * 在全部分会话里找包含关键词的条目，点结果直接跳到对应会话。
+ */
+function 搜索结果({ 词 }: { 词: string }): ReactElement {
+  const 会话们 = useStory((s) => s.会话们);
+  const 查看 = useStory((s) => s.查看);
+  const 开搜索 = useStory((s) => s.开搜索);
+
+  const 关键词 = 词.trim();
+
+  if (!关键词) {
+    return (
+      <div className="wc-search-tip">
+        输入关键词，搜全部会话的聊天记录。
+        <br />
+        支持搜人名、话里的词、群名。
+      </div>
+    );
+  }
+
+  const 结果: Array<{ 会话: 会话; 谁: string; 文本: string; id: number }> = [];
+  for (const c of 会话们) {
+    for (const 项 of c.条目) {
+      const 文 = 条目文本(项);
+      if (!文 || !文.includes(关键词)) continue;
+      const 谁 = 项.种类 === '消息' || 项.种类 === '贴纸' ? 项.谁 : c.名字;
+      结果.push({ 会话: c, 谁, 文本: 文, id: 项.id });
+    }
+  }
+  // 也让人名/群名能被搜到
+  const 会话命中 = 会话们.filter((c) => c.名字.includes(关键词));
+
+  return (
+    <div className="wc-search-results">
+      {会话命中.length ? (
+        <div className="wc-search-group">
+          <div className="wc-search-group-title">会话</div>
+          {会话命中.map((c) => (
+            <button
+              key={c.id}
+              className="wc-search-row"
+              {...按钮反馈(() => {
+                查看(c.id);
+                开搜索(false);
+              })}
+            >
+              {c.类型 === '群聊' ? <群头 成员={c.成员} 尺寸={36} /> : c.对方 ? <头 谁={c.对方} 尺寸={36} /> : null}
+              <span className="wc-search-text">
+                <b>
+                  <高亮 文本={c.名字} 词={关键词} />
+                </b>
+                <span className="wc-search-sub">{c.条目.length} 条记录</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {结果.length ? (
+        <div className="wc-search-group">
+          <div className="wc-search-group-title">聊天记录（{结果.length}）</div>
+          {结果.slice(0, 60).map((r) => (
+            <button
+              key={`${r.会话.id}-${r.id}`}
+              className="wc-search-row"
+              {...按钮反馈(() => {
+                查看(r.会话.id);
+                开搜索(false);
+              })}
+            >
+              <span className="wc-search-text">
+                <span className="wc-search-sub">
+                  {r.会话.名字} · {r.谁}
+                </span>
+                <span className="wc-search-body">
+                  <高亮 文本={r.文本.replace(/\s+/g, ' ').slice(0, 90)} 词={关键词} />
+                </span>
+              </span>
+            </button>
+          ))}
+          {结果.length > 60 ? <div className="wc-search-more">只显示前 60 条</div> : null}
+        </div>
+      ) : null}
+
+      {结果.length === 0 && 会话命中.length === 0 ? (
+        <div className="wc-search-tip">没有找到「{关键词}」相关的记录。</div>
+      ) : null}
+    </div>
+  );
+}
+
 export function Avg(): ReactElement {
   const 屏幕 = useStory((s) => s.屏幕);
   const 队列 = useStory((s) => s.队列);
@@ -295,6 +428,10 @@ export function Avg(): ReactElement {
   const 侧栏面板 = useStory((s) => s.侧栏面板);
   const 切面板 = useStory((s) => s.切面板);
   const 开关资料卡 = useStory((s) => s.开关资料卡);
+  const 搜索开 = useStory((s) => s.搜索开);
+  const 搜索词 = useStory((s) => s.搜索词);
+  const 开搜索 = useStory((s) => s.开搜索);
+  const 设搜索词 = useStory((s) => s.设搜索词);
   const 推进一步 = useStory((s) => s.推进一步);
   const 接受邀请 = useStory((s) => s.接受邀请);
   const 选择 = useStory((s) => s.选择);
@@ -381,43 +518,72 @@ export function Avg(): ReactElement {
         <>
       {/* ── 会话列表 ── */}
       <section className="wc-list" style={{ width: 列表宽 }}>
-        <header className="wc-list-head">
-          <span className="wc-list-title">微信</span>
-          <span className="wc-list-icons">
-            <img src={素材('icon_search.png')} alt="" draggable={false} />
-            <img src={素材('icon_more.png')} alt="" draggable={false} />
-          </span>
-        </header>
+        {搜索开 ? (
+          /* 搜索态：顶栏变成输入框（微信就是这个交互） */
+          <header className="wc-list-head search">
+            <input
+              className="wc-search-input"
+              value={搜索词}
+              autoFocus
+              placeholder="搜索聊天记录"
+              onChange={(e) => 设搜索词(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') 开搜索(false);
+              }}
+            />
+            <button className="wc-search-cancel" {...按钮反馈(() => 开搜索(false))}>
+              取消
+            </button>
+          </header>
+        ) : (
+          <header className="wc-list-head">
+            <span className="wc-list-title">微信</span>
+            <button
+              className="wc-list-search"
+              {...按钮反馈(() => 开搜索(true))}
+              title="搜索聊天记录"
+              aria-label="搜索聊天记录"
+            >
+              <img src={素材('icon_search.png')} alt="" draggable={false} />
+            </button>
+          </header>
+        )}
 
-        <div className="wc-metrics">
-          <span>信任 {指标.信任}</span>
-          <span>协作 {指标.协作}</span>
-          <span>成长 {指标.成长}</span>
-        </div>
+        {搜索开 ? (
+          <搜索结果 词={搜索词} />
+        ) : (
+          <>
+            <div className="wc-metrics">
+              <span>信任 {指标.信任}</span>
+              <span>协作 {指标.协作}</span>
+              <span>成长 {指标.成长}</span>
+            </div>
 
-        <div className="wc-rows">
-          {会话们.map((c) => (
-            <会话行 key={c.id} 会话={c} 选中={c.id === 查看会话} 点={() => 查看(c.id)} />
-          ))}
-        </div>
+            <div className="wc-rows">
+              {会话们.map((c) => (
+                <会话行 key={c.id} 会话={c} 选中={c.id === 查看会话} 点={() => 查看(c.id)} />
+              ))}
+            </div>
 
-        <div className="wc-list-foot">
-          <button
-            className="wc-reset"
-            {...按钮反馈(() => {
-              const 新 = !开启声音;
-              set开启声音(新);
-              设声音(新);
-              if (新) 播放('按钮');
-            })}
-            title={开启声音 ? '关掉音效' : '打开音效'}
-          >
-            {开启声音 ? '🔊 音效开' : '🔇 音效关'}
-          </button>
-          <button className="wc-reset" {...按钮反馈(重置)}>
-            重来
-          </button>
-        </div>
+            <div className="wc-list-foot">
+              <button
+                className="wc-reset"
+                {...按钮反馈(() => {
+                  const 新 = !开启声音;
+                  set开启声音(新);
+                  设声音(新);
+                  if (新) 播放('按钮');
+                })}
+                title={开启声音 ? '关掉音效' : '打开音效'}
+              >
+                {开启声音 ? '🔊 音效开' : '🔇 音效关'}
+              </button>
+              <button className="wc-reset" {...按钮反馈(重置)}>
+                重来
+              </button>
+            </div>
+          </>
+        )}
       </section>
 
       {/* ── 可拖拽分栏 ── */}

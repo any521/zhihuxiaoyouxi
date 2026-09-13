@@ -73,6 +73,10 @@ interface 剧情状态 {
   资料卡开: boolean;
   /** 消息播放倍速（1 = 正常） */
   速度: number;
+  /** 搜索面板是否打开 */
+  搜索开: boolean;
+  /** 搜索词 */
+  搜索词: string;
 
   /** 当前等待玩家操作的东西 */
   待接受邀请: { 标题: string; 副标题: string; 按钮: string } | null;
@@ -93,6 +97,8 @@ interface 剧情状态 {
   切面板: (p: 侧栏面板) => void;
   开关资料卡: (开?: boolean) => void;
   设速度: (n: number) => void;
+  开搜索: (开: boolean) => void;
+  设搜索词: (词: string) => void;
 }
 
 let 条目序号 = 0;
@@ -127,6 +133,8 @@ function 初始() {
     侧栏面板: '会话' as 侧栏面板,
     资料卡开: false,
     速度: Number(window.localStorage.getItem('lks-speed')) || 1,
+    搜索开: false,
+    搜索词: '',
     待接受邀请: null,
     待选择: null,
     待暂停: null,
@@ -364,6 +372,11 @@ export const useStory = create<剧情状态>((set, get) => ({
 
   /** 个人资料卡（点功能栏里自己的头像） */
   开关资料卡: (开) => set((s) => ({ 资料卡开: 开 ?? !s.资料卡开 })),
+
+  /** 开关搜索面板；打开时自动聚焦，关闭时清空搜索词 */
+  开搜索: (开) => set({ 搜索开: 开, 搜索词: 开 ? get().搜索词 : '' }),
+
+  设搜索词: (词) => set({ 搜索词: 词 }),
 
   /** 消息播放倍速，落盘 */
   设速度: (n) => {
