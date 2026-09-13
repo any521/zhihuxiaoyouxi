@@ -82,19 +82,20 @@ async function 拍(名, 中心x, 中心y, 倍) {
 }
 
 await 开标注(true);
-await 拍('正门-带中轴', 22, 26, 3);
-await 拍('正门-全景', 22, 24, 2);
-// 主角 spawn 到正门，看一眼"进门第一眼"
+await 拍('南区-带中轴', 22, 18, 2);
+await 拍('大厅-带中轴', 22, 25, 2);
+await 开标注(false);
+
+// 主角 spawn 到前台，看一眼"进门第一眼"
 await 页.evaluate(() => {
   const s = window.__lksMap;
   s.传送像素(22 * 32 + 16, 26 * 32 + 32);
   s.cameras.main.startFollow(s.主角, true, 0.12, 0.12);
 });
 await 等(600);
-let 画布 = await 页.$('.map-canvas canvas');
-await 画布.screenshot({ path: join(OUT, '正门-主角进场.png') });
-console.log('  正门-主角进场.png ← 主角站在前台，相机跟随');
+const 画布 = await 页.$('.map-canvas canvas');
+await 画布.screenshot({ path: join(OUT, '大厅-主角.png') });
+console.log('  大厅-主角.png ← 主角站在前台，相机跟随');
 
-await 开标注(false);
 console.log(`\n输出：${OUT}`);
 await 浏览器.close();
