@@ -190,11 +190,14 @@ export function MapScreen(): ReactElement {
     场景.current?.设目标(目标id);
   }, [目标id, 就绪]);
 
-  /* ── 剧情推进了：换一批同事站位 ── */
+  /* ── 剧情推进了：换一批同事站位 ──
+     ⚠️ 优先用 `NPC排布号`（剧情"去房间"时定的：那个房间该有谁），
+        没有才跟着 `段号` 走。见 `level.ts` 的 `房间对应排布`。 */
+  const NPC排布号 = useStory((s) => s.NPC排布号);
   useEffect(() => {
     if (!就绪) return;
-    场景.current?.换NPC(段号);
-  }, [段号, 就绪]);
+    场景.current?.换NPC(NPC排布号 ?? 段号);
+  }, [段号, NPC排布号, 就绪]);
 
   /* ── 剧情里按了空格要"坐下/站起来"：计数器一变就执行一次 ── */
   const 坐下请求 = useStory((s) => s.坐下请求);

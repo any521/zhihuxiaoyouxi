@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
-import { 剧情间隔, useStory, type 侧栏面板, type 会话, type 渲染项 } from '../state/story';
+import { useStory, type 侧栏面板, type 会话, type 渲染项 } from '../state/story';
 import { 侧栏内容, 资料卡, 人物卡 } from './Panels';
 import { 播放, 有声, 设声音 } from '../story/audio';
 
@@ -461,8 +461,6 @@ function 知乎正文({ 文本 }: { 文本: string }): ReactElement {
 
 export function Avg(): ReactElement {
   const 屏幕 = useStory((s) => s.屏幕);
-  const 队列 = useStory((s) => s.队列);
-  const 位置 = useStory((s) => s.位置);
   const 会话们 = useStory((s) => s.会话们);
   const 活跃会话 = useStory((s) => s.活跃会话);
   const 查看会话 = useStory((s) => s.查看会话);
@@ -474,7 +472,6 @@ export function Avg(): ReactElement {
   const 去房间 = useStory((s) => s.去房间);
   const 播完 = useStory((s) => s.播完);
   const 指标 = useStory((s) => s.指标);
-  const 速度 = useStory((s) => s.速度);
   const 段标签 = useStory((s) => s.段标签);
   const 侧栏面板 = useStory((s) => s.侧栏面板);
   const 切面板 = useStory((s) => s.切面板);
@@ -499,22 +496,9 @@ export function Avg(): ReactElement {
   const 是活跃 = 查看会话 === 活跃会话;
   const 活跃名 = 会话们.find((c) => c.id === 活跃会话)?.名字 ?? '';
 
-  // 自动推进
-  // ⚠️⚠️ **玩家在看别的会话 / 已经掏出手机走到地图上时，必须停**。
-  //    不加 `是活跃` 这个条件的话：玩家点开林总私聊，剧情却在后台把群消息一路播到
-  //    「去房间」节拍 → 屏幕被强行切回地图 → 玩家看到的就是"微信被强制关闭"
-  //    （用户报的 bug 的另一半）。剧情等玩家看回来再继续。
-  useEffect(() => {
-    if (屏幕 !== 'avg') return;
-    if (!是活跃) return; // 玩家正在看别的会话，别在背后推进
-    // ⚠️ `待去房间` 也要停：播到「去房间」就等玩家点"去 XX ▸"，
-    //    不然自动推进会直接跳过那一步、把屏幕切到地图（用户看到的"微信被强制关闭"）
-    if (待选择 || 待接受邀请 || 待暂停 || 播完 || 待去房间) return;
-    const 本 = 队列[位置];
-    // 倍速只影响等待时长；点聊天区仍然能立刻推进
-    const t = window.setTimeout(() => 推进一步(), (本 ? 剧情间隔(本) : 900) / 速度);
-    return () => window.clearTimeout(t);
-  }, [屏幕, 是活跃, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 待去房间, 推进一步, 速度]);
+  // ⚠️ 自动推进**已经搬到 `StoryClock`**（挂在 Root 上）—— 这里不能留第二份，
+  //    否则两个定时器会互相打架、剧情一次跳两步。
+  //    搬家的原因见 `StoryClock.tsx` 顶部注释（"不切换到相应会话就不推进"那个 bug）。
 
   // 新消息滚到底
   /* 键盘：Tab 收起手机回地图；空格和点聊天区一样推进 */

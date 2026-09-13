@@ -1,0 +1,45 @@
+/**
+ * 剧情时钟：**让剧情自己往下播**，跟玩家当前在看哪个会话无关。
+ *
+ * 为什么单独抽成一个组件（而不是留在 `Avg.tsx` 里）：
+ *
+ * 原来的写法是在 `Avg` 的 `useEffect` 里挂定时器，条件是"玩家正在看的会话 == 正在发消息的会话"。
+ * 这导致一个很别扭的 bug（用户报的「**不切换到相应的对话框就不进行**」）：
+ *   剧情在**群聊**里说话，玩家点开的是**林总私聊** → 定时器不挂 → **剧情卡住不动**；
+ *   玩家得自己点回群聊，剧情才开始走。
+ * 正确的做法是：**只要在微信界面，剧情就按自己的节奏播**；
+ *   不是当前会话的消息就进"未读"，玩家点过去才看到 —— 这是微信本身的行为。
+ *
+ * ⚠️ 挂在 `Root` 上而不是某个屏幕里：切屏时它不会被卸载重启，
+ *    但条件是"屏幕 === 'avg'"，所以在地图上/开场时不会推进。
+ * ⚠️ 四个"等玩家"的状态（选项/邀请/暂停/去房间）和"播完"都必须停。
+ */
+import { useEffect } from 'react';
+import { useStory, 剧情间隔 } from '../state/story';
+
+export function StoryClock(): null {
+  const 屏幕 = useStory((s) => s.屏幕);
+  const 队列 = useStory((s) => s.队列);
+  const 位置 = useStory((s) => s.位置);
+  const 待选择 = useStory((s) => s.待选择);
+  const 待接受邀请 = useStory((s) => s.待接受邀请);
+  const 待暂停 = useStory((s) => s.待暂停);
+  const 待去房间 = useStory((s) => s.待去房间);
+  const 播完 = useStory((s) => s.播完);
+  const 速度 = useStory((s) => s.速度);
+  const 推进一步 = useStory((s) => s.推进一步);
+
+  useEffect(() => {
+    if (屏幕 !== 'avg') return;
+    if (待选择 || 待接受邀请 || 待暂停 || 播完 || 待去房间) return;
+    const 本 = 队列[位置];
+    // ⚠️ `切会话` 之后给玩家留一点时间看未读红点，不然会"刚跳过去就已经播完了"。
+    //    （剧情不会停，只是这一拍慢一点。）
+    const 基础 = 本 ? 剧情间隔(本) : 900;
+    const 时长 = (本?.类型 === '切会话' ? Math.max(基础, 1400) : 基础) / 速度;
+    const t = window.setTimeout(() => 推进一步(), 时长);
+    return () => window.clearTimeout(t);
+  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 待去房间, 推进一步, 速度]);
+
+  return null;
+}

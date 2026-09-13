@@ -14,10 +14,16 @@ import { useStory } from '../state/story';
 import { Opening } from './Opening';
 import { Avg } from './Avg';
 import { MapScreen } from './MapScreen';
+import { StoryClock } from './StoryClock';
 
 export function Root(): ReactElement {
   const 屏幕 = useStory((s) => s.屏幕);
-  if (屏幕 === 'opening') return <Opening />;
-  if (屏幕 === 'map') return <MapScreen />;
-  return <Avg />;
+  // ⚠️ `StoryClock` 挂在**外层**：它负责"剧情自己往下播"，和玩家在看哪个会话无关。
+  //    放进 Avg 里的话，切会话/切屏会把定时器重启，剧情就会卡（用户报过）。
+  return (
+    <>
+      <StoryClock />
+      {屏幕 === 'opening' ? <Opening /> : 屏幕 === 'map' ? <MapScreen /> : <Avg />}
+    </>
+  );
 }
