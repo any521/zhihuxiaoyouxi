@@ -1,0 +1,197 @@
+/**
+ * 地图模式样式。
+ *
+ * 和 AVG 保持同一套视觉语言：米白 + 绿、统一的按钮反馈、
+ * 文字用同一条像素字体栈（在 screens.css 的 .pixel 里统一声明）。
+ *
+ * Phaser 画布内部固定 512×288（或竖屏 288×512），
+ * 这里用 CSS 把它**整数倍**放大铺满窗口 —— 非整数倍会让像素糊掉。
+ */
+
+.map-wrap {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #1b2028;
+  font-family: 'ArkPixel', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+
+/* 画布：整数放大，居中 */
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.map-canvas canvas {
+  /* 由 JS 每帧算出的 --map-scale 控制整数倍 */
+  image-rendering: pixelated;
+  display: block;
+  width: calc(512px * var(--map-scale, 2));
+  height: calc(288px * var(--map-scale, 2));
+}
+
+/* 竖屏时按 288×512 放 */
+@media (orientation: portrait) and (max-width: 720px) {
+  .map-canvas canvas {
+    width: calc(288px * var(--map-scale, 2));
+    height: calc(512px * var(--map-scale, 2));
+  }
+}
+
+/* ───────── 覆盖层 ───────── */
+
+.map-hud {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.map-day {
+  align-self: flex-start;
+  font-size: 12px;
+  color: #f7efdd;
+  background: rgba(47, 93, 58, 0.92);
+  border: 2px solid #a8d98a;
+  padding: 5px 12px;
+}
+
+.map-tip {
+  font-size: 12px;
+  color: #e8dcc0;
+  background: rgba(20, 22, 28, 0.72);
+  padding: 4px 10px;
+}
+
+/* 靠近交互点时的提示条 */
+.map-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 26px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  font-size: 12px;
+  color: #f7efdd;
+  background: rgba(20, 22, 28, 0.88);
+  border: 2px solid rgba(247, 239, 221, 0.35);
+  animation: map-pop 0.16s ease-out both;
+}
+
+.map-prompt b {
+  font-size: 24px;
+  font-weight: normal;
+  color: #fff;
+}
+
+/* 主线入口用绿色的强调条 */
+.map-prompt.main {
+  border-color: #7cc26b;
+  background: rgba(47, 93, 58, 0.94);
+  box-shadow: 0 0 0 2px rgba(168, 217, 138, 0.25);
+}
+
+.map-prompt-key {
+  font-size: 12px;
+  color: #241a12;
+  background: #a8d98a;
+  border: 2px solid #2f5d3a;
+  padding: 3px 9px;
+}
+
+.map-prompt-act {
+  color: #d8cbb4;
+}
+
+.map-prompt-star {
+  font-size: 12px;
+  color: #241a12;
+  background: #ffcb6b;
+  padding: 2px 8px;
+}
+
+@keyframes map-pop {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* 右上角：掏手机 */
+.map-phone {
+  position: absolute;
+  right: 16px;
+  top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 24px;
+  color: #f7efdd;
+  background: rgba(47, 93, 58, 0.94);
+  border: 2px solid #a8d98a;
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background 0.14s, border-color 0.14s;
+}
+
+.map-phone:hover {
+  background: #4a8f4f;
+  border-color: #fff;
+}
+
+.map-phone:active {
+  transform: translateY(2px);
+}
+
+.map-phone:focus-visible {
+  outline: 3px solid #a8d98a;
+  outline-offset: 2px;
+}
+
+.map-phone-dot {
+  width: 8px;
+  height: 8px;
+  background: #ffcb6b;
+  border-radius: 50%;
+}
+
+.map-phone-key {
+  font-size: 12px;
+  color: #241a12;
+  background: rgba(247, 239, 221, 0.85);
+  padding: 2px 6px;
+}
+
+/* ───────── 手机 ───────── */
+
+@media (max-width: 720px) {
+  .map-hud {
+    left: 10px;
+    top: 10px;
+    max-width: calc(100% - 120px);
+  }
+
+  .map-tip {
+    display: none; /* 手机上没键盘，说明没意义 */
+  }
+
+  .map-phone {
+    right: 10px;
+    top: 10px;
+  }
+
+  .map-prompt {
+    bottom: 18px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: calc(100% - 24px);
+  }
+}
