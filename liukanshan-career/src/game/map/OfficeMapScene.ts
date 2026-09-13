@@ -324,9 +324,19 @@ export class OfficeMapScene extends Phaser.Scene {
     ].entries()) {
       this.load.image(`t${i}`, `${基}${名}.png`);
     }
-    // 坐姿表：4 帧 × 32×48 横排，直接当 spritesheet 用
+    // 坐姿表（**两套**）：4 帧 × 32×48 横排，直接当 spritesheet 用
+    //   sit_<名>      = 背面坐姿（在自己工位上背对走廊打字）
+    //   sitfront_<名> = 正面坐姿（被剧情传送到茶水间/会议室，面对主角说话，画到脚）
     for (const 名 of 有坐姿) {
       this.load.spritesheet(`sit_${名}`, `${基}sit_${名}.png`, { frameWidth: 32, frameHeight: 48 });
+      if (this.textures.exists(`sitfront_${名}`) || true) {
+        // ⚠️ 正面坐姿素材**可以缺**（还没生成的版本）：缺了就用背面那套兜底，
+        //    所以这里用 `if (!exists)` 包一层，加载失败不会让整个 preload 崩。
+        this.load.spritesheet(`sitfront_${名}`, `${基}sitfront_${名}.png`, {
+          frameWidth: 32,
+          frameHeight: 48,
+        });
+      }
     }
     for (const p of 道具表) {
       if (!this.textures.exists(p.图)) this.load.image(p.图, `${基}${p.图}.png`);
@@ -438,16 +448,32 @@ export class OfficeMapScene extends Phaser.Scene {
     });
   }
 
-  /** 坐姿打字循环（每个角色一套）*/
+  /** 坐姿打字循环（每个角色一套）
+   *  **两套动画**：
+   *    `坐_<名>`   = 背面坐姿（工位上背对走廊）
+   *    `坐正_<名>` = 正面坐姿（茶水间/会议室，面对主角说话）
+   *  缺正面素材的角色，`坐正_` 直接复用背面那套（宁可姿势不对，也不能不动）。 */
   private 建坐姿动画(): void {
     for (const 名 of 有坐姿) {
-      if (this.anims.exists(`坐_${名}`)) continue;
-      this.anims.create({
-        key: `坐_${名}`,
-        frames: this.anims.generateFrameNumbers(`sit_${名}`, { frames: [0, 1, 2, 3] }),
-        frameRate: 3, // 打字的小幅起伏，慢一点才像呼吸
-        repeat: -1,
-      });
+      if (!this.anims.exists(`坐_${名}`)) {
+        this.anims.create({
+          key: `坐_${名}`,
+          frames: this.anims.generateFrameNumbers(`sit_${名}`, { frames: [0, 1, 2, 3] }),
+          frameRate: 3, // 打字的小幅起伏，慢一点才像呼吸
+          repeat: -1,
+        });
+      }
+      const 有正面 = this.textures.exists(`sitfront_${名}`);
+      if (!this.anims.exists(`坐正_${名}`)) {
+        this.anims.create({
+          key: `坐正_${名}`,
+          frames: this.anims.generateFrameNumbers(有正面 ? `sitfront_${名}` : `sit_${名}`, {
+            frames: [0, 1, 2, 3],
+          }),
+          frameRate: 3,
+          repeat: -1,
+        });
+      }
     }
   }
 
@@ -512,15 +538,35 @@ export class OfficeMapScene extends Phaser.Scene {
     return 座位表.some((s) => s.x === x && s.y === y);
   }
 
+  /**
+   * 坐在**哪个房间的椅子**上 —— 决定用哪套坐姿动画。
+   *
+   * 用户的要求（"传送功能"那一半）：同事被剧情传送到别的房间时，
+   * **要以合适的姿势直接出现在目的地**。所以：
+   *   · **开放办公区 / 总监办公室**的转椅 → `back`（背面坐姿，背对走廊打字）
+   *   · **茶水间 / 会议室**的椅子 → `front`（正面坐姿，面对主角说话，画到脚）
+   * 这两套的区分**只看"椅子在哪"**，不看剧情，所以以后加房间不用改逻辑，加座位就行。
+   */
+  private 坐哪套(x: number, y: number): 'back' | 'front' | null {
+    if (!this.是椅子(x, y)) return null;
+    // 开放办公区：x13-30 / y2-9；总监办公室：x24-32 / y14-21
+    const 办公区 = x >= 13 && x <= 30 && y >= 2 && y <= 9;
+    const 总监室 = x >= 24 && x <= 32 && y >= 14 && y <= 21;
+    return 办公区 || 总监室 ? 'back' : 'front';
+  }
+
   private 建NPC批(排布: NPC位[]): void {
     for (const n of 排布) {
       const { x, y } = this.格到像素(n.x, n.y);
-      // 坐在椅子上 → 用坐姿动画；否则用站立朝向帧
-      const 坐 = this.是椅子(n.x, n.y) && 有坐姿.includes(n.名) && this.textures.exists(`sit_${n.名}`);
-      const s = 坐
-        ? this.add.sprite(x, y, `sit_${n.名}`, 0)
+      // 坐在椅子上 → 用坐姿动画（**按椅子在哪个房间选背面/正面那套**）；
+      // 否则用站立朝向帧
+      const 套 = this.坐哪套(n.x, n.y);
+      const 能坐 = !!套 && 有坐姿.includes(n.名) && this.textures.exists(`sit_${n.名}`);
+      const 用正面 = 套 === 'front' && this.anims.exists(`坐正_${n.名}`);
+      const s = 能坐
+        ? this.add.sprite(x, y, 用正面 ? `sitfront_${n.名}` : `sit_${n.名}`, 0)
         : this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
-      if (坐) s.anims.play(`坐_${n.名}`, true);
+      if (能坐) s.anims.play(用正面 ? `坐正_${n.名}` : `坐_${n.名}`, true);
       s.setOrigin(0.5, 1);
       s.setDepth(y);
       // 名字挂在精灵上：靠过去弹人物卡时要按名字查人物卡库

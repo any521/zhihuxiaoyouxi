@@ -498,14 +498,19 @@ export function Avg(): ReactElement {
   const 活跃名 = 会话们.find((c) => c.id === 活跃会话)?.名字 ?? '';
 
   // 自动推进
+  // ⚠️⚠️ **玩家在看别的会话 / 已经掏出手机走到地图上时，必须停**。
+  //    不加 `是活跃` 这个条件的话：玩家点开林总私聊，剧情却在后台把群消息一路播到
+  //    「去房间」节拍 → 屏幕被强行切回地图 → 玩家看到的就是"微信被强制关闭"
+  //    （用户报的 bug 的另一半）。剧情等玩家看回来再继续。
   useEffect(() => {
     if (屏幕 !== 'avg') return;
+    if (!是活跃) return; // 玩家正在看别的会话，别在背后推进
     if (待选择 || 待接受邀请 || 待暂停 || 播完) return;
     const 本 = 队列[位置];
     // 倍速只影响等待时长；点聊天区仍然能立刻推进
     const t = window.setTimeout(() => 推进一步(), (本 ? 剧情间隔(本) : 900) / 速度);
     return () => window.clearTimeout(t);
-  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
+  }, [屏幕, 是活跃, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
 
   // 新消息滚到底
   /* 键盘：Tab 收起手机回地图；空格和点聊天区一样推进 */
@@ -513,11 +518,15 @@ export function Avg(): ReactElement {
     const 键 = (e: KeyboardEvent): void => {
       if (e.key === 'Tab') {
         e.preventDefault();
+        // ⚠️ 和 MapScreen 里那道闸成对：切屏时两个监听器会在**同一个事件**里先后触发，
+        //    不加这个判断就会"刚切过来又被切回去"（用户报的"打开微信被强制关闭"）。
+        if (useStory.getState().屏幕 !== 'avg') return;
         播放('按钮');
         回地图();
         return;
       }
       if (e.code === 'Space' || e.key === ' ') {
+        if (useStory.getState().屏幕 !== 'avg') return;
         e.preventDefault();
         // 和点聊天区等价：有选项/邀请/暂停时不推进（那些要点按钮）
         const s = useStory.getState();

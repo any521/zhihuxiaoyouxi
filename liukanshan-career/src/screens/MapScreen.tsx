@@ -188,6 +188,12 @@ export function MapScreen(): ReactElement {
     (e: KeyboardEvent): void => {
       if (e.key === 'Tab') {
         e.preventDefault();
+        // ⚠️⚠️ **必须判"我现在还在不在这一屏"**（用户报的 bug："打开微信会被强制关闭"）。
+        //    原因：切屏是 React 重新渲染、**监听器的卸载/挂载发生在这同一个键盘事件之后**，
+        //    所以按一次 Tab 会**先后触发两个监听器** —— 地图那个切到微信，
+        //    微信那个紧接着又切回地图（实测：一次 Tab 之后屏幕停在 map）。
+        //    加这道闸：已经不在 map 了就直接返回。
+        if (useStory.getState().屏幕 !== 'map') return;
         播放('按钮');
         const s = 场景.current;
         if (s) useStory.getState().记地图位置(s.精确位置());
@@ -196,11 +202,13 @@ export function MapScreen(): ReactElement {
       }
       if (e.key === 'Escape') {
         e.preventDefault();
+        if (useStory.getState().屏幕 !== 'map') return;
         播放('按钮');
         开关设置();
         return;
       }
       if (e.code === 'Space' || e.key === ' ') {
+        if (useStory.getState().屏幕 !== 'map') return;
         e.preventDefault();
         // 门优先：站在门口时空格是开关门，不是交互
         // ⚠️ 这里读 ref 而不是 state —— keydown 的闭包是旧的，读 state 会拿到过期的值
