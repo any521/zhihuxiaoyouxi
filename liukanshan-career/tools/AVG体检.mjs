@@ -89,6 +89,18 @@ await 页.evaluate(() => window.__lksStory.getState().接受邀请());
 await 等(200);
 const 邀请后 = await 状态();
 console.log(`接受邀请后视图 = ${邀请后.查看}（应为 group，邀请当场就该看到）`);
+// ⚠️ 接受之后，群里**不能**再冒出一张邀请卡（用户报过两次）
+await 等(300);
+const 接受后卡片 = await 页.evaluate(() => {
+  const s = window.__lksStory.getState();
+  return s.会话们
+    .filter((c) => c.条目.some((x) => x.种类 === '邀请'))
+    .map((c) => ({ 会话: c.id, 几张: c.条目.filter((x) => x.种类 === '邀请').length }));
+});
+console.log(`接受后：邀请卡所在会话 = ${JSON.stringify(接受后卡片)}（group 必须不在里面）`);
+const OUT1 = 'tools/shots/avg';
+await import('node:fs').then((fs) => fs.mkdirSync(OUT1, { recursive: true }));
+await 页.screenshot({ path: `${OUT1}/接受后进群.png` });
 
 console.log('\n=== ② 未读数字小红点 ===\n');
 // 接受邀请后推进：群消息应该进 group；之后剧本会切到周岚私聊，此时 group 应积未读
@@ -164,6 +176,8 @@ const 好 =
   邀请前.查看 === 'lin' &&
   邀请卡在哪.length === 1 &&
   邀请卡在哪[0]?.会话 === 'lin' &&
+  接受后卡片.length === 1 &&
+  接受后卡片[0]?.会话 === 'lin' &&
   邀请后.查看 === 'group' &&
   汇合.查看 === 'group' &&
   (有周岚?.未读 ?? 0) > 0 &&
