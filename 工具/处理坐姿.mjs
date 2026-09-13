@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 处理坐姿动画表（零依赖）
  *
  * 输入：`原图/11-角色动画/坐姿_XXX.png`（2048×2048，2×2 四格，纯品红背景）
@@ -11,14 +11,24 @@
  *      否则每帧单独裁会让角色在动画里抖动。
  *   三、只画到腰部以上，所以角色贴**画布上沿**放，下半部分留空给椅子。
  *
- * 用法：node 工具/处理坐姿.mjs
+ * **两套坐姿**（`--正面` 切换，规格/四格布局/锚点完全一样，只是源目录和输出名不同）：
+ *   · 默认：**纯背面**  `坐姿_*`     → `sit_*`      —— 在自己的工位上背对走廊打字
+ *   · `--正面`：**正对面** `正面坐姿_*` → `sitfront_*` —— 被剧情传送到茶水间/会议室，围着桌子说话
+ *     提示词见 `美术/提示词-11-正面坐姿.md`
+ *
+ * 用法：node 工具/处理坐姿.mjs           # 背面那套
+ *      node 工具/处理坐姿.mjs --正面     # 正面那套
  */
 import { mkdirSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { 读取PNG, 写入PNG, 裁剪, 量化, 去毛边 } from './图像库.mjs';
 
 const 根 = resolve(process.cwd());
-const 源目录 = join(根, '美术/素材库/原图/11-角色动画');
+/** `--正面` 处理正面坐姿那套（源目录 / 文件名前缀 / 输出前缀都跟着换） */
+const 正面 = process.argv.includes('--正面');
+const 前缀 = 正面 ? '正面坐姿_' : '坐姿_';
+const 输出前缀 = 正面 ? 'sitfront_' : 'sit_';
+const 源目录 = join(根, 正面 ? '美术/素材库/原图/20-正面坐姿' : '美术/素材库/原图/11-角色动画');
 const 出目录 = join(根, '美术/素材库/成品/角色动画');
 const 游戏 = join(根, 'liukanshan-career/public/assets/map');
 
@@ -85,10 +95,10 @@ function 缩到(src, w, h) {
 mkdirSync(出目录, { recursive: true });
 mkdirSync(游戏, { recursive: true });
 
-console.log('=== 处理坐姿动画 ===\n');
+console.log(`=== 处理${正面 ? '正面' : '背面'}坐姿动画 ===\n`);
 
 for (const 名 of 角色们) {
-  const 源 = join(源目录, `坐姿_${名}.png`);
+  const 源 = join(源目录, `${前缀}${名}.png`);
   if (!existsSync(源)) {
     console.log(`  ⬜ ${名}：还没生成`);
     continue;
@@ -186,8 +196,8 @@ for (const 名 of 角色们) {
   }
 
   const 成品 = 量化({ width: 帧W * 4, height: 帧H, rgb: 总, alpha: 总alpha });
-  写入PNG(join(出目录, `坐姿_${名}_32x48x4.png`), 成品);
-  写入PNG(join(游戏, `sit_${名}.png`), 成品);
+  写入PNG(join(出目录, `${输出前缀}${名}_32x48x4.png`), 成品);
+  写入PNG(join(游戏, `${输出前缀}${名}.png`), 成品);
 
   // 用色统计要读**量化后**的 成品，不是量化前的 总（读错了会显示几百色，白担心）
   const 用色 = new Set();
