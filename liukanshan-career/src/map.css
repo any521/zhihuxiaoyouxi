@@ -364,3 +364,13 @@
     margin: 6px;
   }
 }
+
+/* 门口提示：用木色，和交互点的绿/黄区分开 */
+.map-prompt.door {
+  border-color: #b87b4a;
+  background: rgba(61, 40, 22, 0.94);
+}
+
+.map-prompt.door b {
+  color: #f0c896;
+}

@@ -19,7 +19,9 @@ import {
   地图高,
   格,
   网格,
+  瓦片,
   挡路瓦片,
+  门配对,
   交互点表,
   道具表,
   占地表,
@@ -52,6 +54,8 @@ export interface 地图回调 {
   交互: (点: 交互点) => void;
   /** 点了某个同事（弹人物卡） */
   点人物: (名: string) => void;
+  /** 附近的门变了（靠近门时提示"空格 开门/关门"） */
+  附近门变了: (门: { x: number; y: number; 开: boolean } | null) => void;
 }
 
 export class OfficeMapScene extends Phaser.Scene {
@@ -67,6 +71,9 @@ export class OfficeMapScene extends Phaser.Scene {
   private 脚下影!: Phaser.GameObjects.Ellipse;
   private 回调?: 地图回调;
   private 当前附近: 交互点 | null = null;
+  /** 地图上所有门的位置（开局从网格里扫出来） */
+  private 门们: Array<{ x: number; y: number }> = [];
+  private 当前附近门: { x: number; y: number; 开: boolean } | null = null;
   private 朝向 = 0;
   private 目标 = 交互点表[0] as 交互点 | undefined;
 
@@ -82,6 +89,56 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 换一个导航目标（指引线指向它） */
   设目标(id: string | null): void {
     this.目标 = id ? 交互点表.find((p) => p.id === id) : undefined;
+  }
+
+  /** 某格的门开着吗（开着的门瓦片 = 门横/门竖） */
+  private 门开着(x: number, y: number): boolean {
+    const t = 网格[y]?.[x];
+    return t === 瓦片.门横 || t === 瓦片.门竖;
+  }
+
+  /**
+   * 开 / 关一扇门。
+   * ⚠️ 改完瓦片要**手动设碰撞** —— putTileAt 换上去的新瓦片不会自动带上"挡路"属性
+   *    （我是用 setCollision(索引数组) 设的，不是靠 tileset 自带属性）。
+   */
+  开关门(x: number, y: number): void {
+    const 旧 = 网格[y]?.[x];
+    if (旧 === undefined) return;
+    const 新 = 门配对[旧];
+    if (新 === undefined) return;
+    网格[y][x] = 新;
+    // putTileAt 的索引参数被推断成了字面量联合类型，这里转成 number
+    this.图层.putTileAt(新 as number, x, y);
+    const 挡 = 挡路瓦片.includes(新);
+    const t = this.图层.getTileAt(x, y);
+    t?.setCollision(挡, 挡, 挡, 挡, true);
+  }
+
+  /** 开局扫一遍网格，把所有门的位置记下来 */
+  private 找门(): void {
+    this.门们 = [];
+    for (let y = 0; y < 地图高; y += 1) {
+      for (let x = 0; x < 地图宽; x += 1) {
+        if (门配对[网格[y][x]] !== undefined) this.门们.push({ x, y });
+      }
+    }
+  }
+
+  /** 最近的门（在交互半径内） */
+  private 最近门(): { x: number; y: number; 开: boolean } | null {
+    let 最好: { x: number; y: number; 开: boolean } | null = null;
+    let 最近距 = 交互半径 + 10;
+    for (const d of this.门们) {
+      const px = d.x * 格 + 格 / 2;
+      const py = d.y * 格 + 格;
+      const dist = Phaser.Math.Distance.Between(this.主角.x, this.主角.y, px, py);
+      if (dist < 最近距) {
+        最近距 = dist;
+        最好 = { x: d.x, y: d.y, 开: this.门开着(d.x, d.y) };
+      }
+    }
+    return 最好;
   }
 
   /** 调试用：把主角直接挪到某个**瓦片坐标**（自动化测试走近交互点太慢） */
@@ -132,6 +189,8 @@ export class OfficeMapScene extends Phaser.Scene {
       'tile_door_h',
       'tile_door_v',
       'tile_desk',
+      'tile_door_h_closed',
+      'tile_door_v_closed',
     ].entries()) {
       this.load.image(`t${i}`, `${基}${名}.png`);
     }
@@ -162,13 +221,14 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建镜头();
     this.建输入();
     this.建指引线();
+    this.找门();
   }
 
   /* ───────── 搭建 ───────── */
 
   /** 把 6 张瓦片拼成一张 6 格的 tileset 贴图 */
   private 建瓦片集(): void {
-    const 序 = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10'];
+    const 序 = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12'];
     const cv = document.createElement('canvas');
     cv.width = 格 * 序.length;
     cv.height = 格;
@@ -396,6 +456,14 @@ export class OfficeMapScene extends Phaser.Scene {
     if (最近?.id !== this.当前附近?.id) {
       this.当前附近 = 最近;
       this.回调?.附近变了(最近);
+    }
+    // 门单独查一遍（门不在"交互点"表里，是按瓦片扫出来的）
+    const 门 = this.最近门();
+    const 门变了 =
+      (门?.x !== this.当前附近门?.x) || (门?.y !== this.当前附近门?.y) || (门?.开 !== this.当前附近门?.开);
+    if (门变了) {
+      this.当前附近门 = 门;
+      this.回调?.附近门变了(门);
     }
     // ⚠️ 交互键（空格）不在 Phaser 里判定 —— Phaser 的键盘监听依赖画布焦点，
     //    实测自动化点不到、真人也要先点一下画布才行。改由 React 层统一处理

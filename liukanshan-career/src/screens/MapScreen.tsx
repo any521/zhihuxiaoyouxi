@@ -47,6 +47,9 @@ export function MapScreen(): ReactElement {
   const 游戏 = useRef<Phaser.Game | null>(null);
   const [尺寸, set尺寸] = useState(算尺寸);
   const [就绪, set就绪] = useState(false);
+  /** 附近的门（靠近时底部提示改成开门/关门） */
+  const [附近门, set附近门] = useState<{ x: number; y: number; 开: boolean } | null>(null);
+  const 附近门ref = useRef<{ x: number; y: number; 开: boolean } | null>(null);
 
   const 附近 = useStory((s) => s.附近交互点);
   const 目标id = useStory((s) => s.地图目标);
@@ -114,6 +117,11 @@ export function MapScreen(): ReactElement {
             播放('选项悬停');
             看人物(名 as never);
           },
+          // 靠近门 → 底部提示改成「空格 开门/关门」
+          附近门变了: (门) => {
+            附近门ref.current = 门;
+            set附近门(门);
+          },
         });
         // 回到记忆中的位置（切去微信再回来不会重置到出生点）
         const 记 = useStory.getState().地图位置;
@@ -177,6 +185,15 @@ export function MapScreen(): ReactElement {
       }
       if (e.code === 'Space' || e.key === ' ') {
         e.preventDefault();
+        // 门优先：站在门口时空格是开关门，不是交互
+        // ⚠️ 这里读 ref 而不是 state —— keydown 的闭包是旧的，读 state 会拿到过期的值
+        const 门 = 附近门ref.current;
+        const s = 场景.current;
+        if (门 && s) {
+          播放(门.开 ? '按钮' : '选择确认', 0.5);
+          s.开关门(门.x, 门.y);
+          return;
+        }
         const id = useStory.getState().附近交互点;
         if (id) {
           播放('按钮');
@@ -228,8 +245,14 @@ export function MapScreen(): ReactElement {
         <b>方向键</b> 走动 · <b>Shift</b> 跑 · <b>空格</b> 交互 · <b>Tab</b> 微信 · <b>Esc</b> 设置
       </div>
 
-      {/* 底部中间：靠近交互点时的提示 */}
-      {附近点 ? (
+      {/* 底部中间：门优先（站在门口时空格是开关门） */}
+      {附近门 ? (
+        <div className="map-prompt door">
+          <b>{附近门.开 ? '开着' : '关着'}</b>
+          <span className="map-prompt-key">空格</span>
+          <span className="map-prompt-act">{附近门.开 ? '把门关上' : '把门推开'}</span>
+        </div>
+      ) : 附近点 ? (
         <div className={`map-prompt${是主线 ? ' main' : ''}`}>
           <b>{附近点.名}</b>
           <span className="map-prompt-key">空格</span>

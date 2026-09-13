@@ -33,6 +33,8 @@ const 瓦片 = [
   ['瓦片v2/瓦片_墙面_玻璃隔断.png', 'map/tile_glass.png'],
   ['瓦片v2/瓦片_门_横.png', 'map/tile_door_h.png'],
   ['瓦片v2/瓦片_门_竖.png', 'map/tile_door_v.png'],
+  ['瓦片v2/瓦片_门_横_关.png', 'map/tile_door_h_closed.png'],
+  ['瓦片v2/瓦片_门_竖_关.png', 'map/tile_door_v_closed.png'],
   ['瓦片v2/瓦片_台面_木质桌面.png', 'map/tile_desk.png'],
 ];
 映射.push(...瓦片);
