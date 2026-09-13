@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 小地图。
  *
  * 右上角一块缩略图，点一下放大（再点收起）。
@@ -12,7 +12,7 @@
  * 走起来不会触发整棵 React 树重渲染。
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react';
-import { 地图宽, 地图高, 网格, 瓦片, 交互点表, NPC表 } from '../game/map/level';
+import { 地图宽, 地图高, 网格, 瓦片, 交互点表, NPC表, 道具表 } from '../game/map/level';
 import { 位置总线 } from '../game/map/位置总线';
 import { 头像 } from '../story/assets';
 import { 播放 } from '../story/audio';
@@ -83,6 +83,18 @@ function 画地图(cv: HTMLCanvasElement, 格像素: number): void {
         ctx.fillRect(x * 格像素, y * 格像素, 格像素, 格像素);
       }
     }
+  }
+
+  // ①b 家具道具：也用各自的素材图缩略画（桌子/打印机/沙发…）
+  //     原点约定和游戏里一致：贴底居中
+  const 道具高 = (48 / 32) * 格像素;
+  for (const p of 道具表) {
+    const img = 取图(p.图);
+    if (!img) continue;
+    const w = (img.naturalWidth / 32) * 格像素;
+    const cx = (p.x + 0.5) * 格像素;
+    const cy = (p.y + 1) * 格像素;
+    ctx.drawImage(img, cx - w / 2, cy - 道具高, w, 道具高);
   }
 
   // ② 可交互点：小黄点

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 处理坐姿动画表（零依赖）
  *
  * 输入：`原图/11-角色动画/坐姿_XXX.png`（2048×2048，2×2 四格，纯品红背景）
@@ -129,7 +129,13 @@ for (const 名 of 角色们) {
   const 框W = 并.maxX - 并.minX + 1;
   const 框H = 并.maxY - 并.minY + 1;
 
-  // ② 四帧：从每格的**同一相对位置**裁同一个框，保证不抖
+  // ② 四帧：**每帧按自己的内容居中**，但**缩放比例四帧共用**。
+  //
+  // ⚠️ 一开始是"四帧共用并集裁剪框"，结果人明显偏右（实测刘看山左右空 8/1、
+  //    小鹿 9/1）—— 因为只要有一格里内容往左多伸一点（比如胳膊），
+  //    并集框就被撑宽，其余格的角色在框里就偏了。
+  //    改成每帧用自己的边界定位，比例仍用并集算（比例不共用的话动画会一胀一缩地抖）。
+  const 比 = Math.min(内容W / 框W, 内容H / 框H);
   const 总 = new Uint8Array(帧W * 4 * 帧H * 3);
   const 总alpha = new Uint8Array(帧W * 4 * 帧H);
   let 帧号 = 0;
@@ -137,19 +143,34 @@ for (const 名 of 角色们) {
     for (let c = 0; c < 2; c += 1) {
       const 格x = c * 半W;
       const 格y = r * 半H;
-      // 用**相对本格**的并集边界（四格构图一致，所以能直接平移过来）
-      const 左 = 格x + 并.minX;
-      const 上 = 格y + 并.minY;
-      const 片 = 裁剪(图, 左, 上, 框W, 框H);
+      const 本 = 边[帧号];
+      if (!本) {
+        帧号 += 1;
+        continue;
+      }
+      const 本W = 本.maxX - 本.minX + 1;
+      const 本H = 本.maxY - 本.minY + 1;
+      const 片 = 裁剪(图, 格x + 本.minX, 格y + 本.minY, 本W, 本H);
       const 净 = 去毛边(片);
-      // 等比缩到最大 内容W×内容H
-      const 比 = Math.min(内容W / 框W, 内容H / 框H);
-      const 小W = Math.max(1, Math.round(框W * 比));
-      const 小H = Math.max(1, Math.round(框H * 比));
+      const 小W = Math.max(1, Math.round(本W * 比));
+      const 小H = Math.max(1, Math.round(本H * 比));
       const 小 = 缩到(净, 小W, 小H);
-      // 贴到帧的**上方居中**
-      const ox = Math.floor((帧W - 小W) / 2);
-      const oy = 0;
+      // ⚠️ 水平位置用**重心**对齐，不用边界中点。
+      //    实测有一格里有不对称的杂点把边界撑歪，按边界居中的话那一帧会明显偏（8/1）。
+      //    重心对杂点不敏感（质量小、拉不动），四帧因此能对齐在同一个中轴上。
+      let 质心 = 0;
+      let 质量 = 0;
+      for (let y = 0; y < 小H; y += 1) {
+        for (let x = 0; x < 小W; x += 1) {
+          if (小.alpha[y * 小W + x] < 128) continue;
+          质心 += x;
+          质量 += 1;
+        }
+      }
+      const 中轴 = 质量 > 0 ? 质心 / 质量 : 小W / 2;
+      const ox = Math.round(帧W / 2 - 中轴);
+      // 垂直：**底边对齐**在固定的腰线上（对齐底边动画才不会上下跳）
+      const oy = 内容H - 小H;
       for (let y = 0; y < 小H; y += 1) {
         for (let x = 0; x < 小W; x += 1) {
           const si = (y * 小W + x) * 3;
