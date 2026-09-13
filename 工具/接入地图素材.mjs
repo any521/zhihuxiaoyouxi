@@ -31,11 +31,14 @@ const 瓦片 = [
   ['瓦片v2/瓦片_地面_木地板.png', 'map/tile_wood.png'],
   ['瓦片v2/瓦片_墙面_办公白墙.png', 'map/tile_wall.png'],
   ['瓦片v2/瓦片_墙面_玻璃隔断.png', 'map/tile_glass.png'],
-  ['瓦片v2/瓦片_门_横.png', 'map/tile_door_h.png'],
-  ['瓦片v2/瓦片_门_竖.png', 'map/tile_door_v.png'],
-  ['瓦片v2/瓦片_门_横_关.png', 'map/tile_door_h_closed.png'],
-  ['瓦片v2/瓦片_门_竖_关.png', 'map/tile_door_v_closed.png'],
-  ['瓦片v2/瓦片_台面_木质桌面.png', 'map/tile_desk.png'],
+  ['瓦片v2/瓦片_门_横_左.png', 'map/tile_door_h_l.png'],
+  ['瓦片v2/瓦片_门_横_右.png', 'map/tile_door_h_r.png'],
+  ['瓦片v2/瓦片_门_竖_上.png', 'map/tile_door_v_u.png'],
+  ['瓦片v2/瓦片_门_竖_下.png', 'map/tile_door_v_d.png'],
+  ['瓦片v2/瓦片_门_横_左_关.png', 'map/tile_door_h_l_c.png'],
+  ['瓦片v2/瓦片_门_横_右_关.png', 'map/tile_door_h_r_c.png'],
+  ['瓦片v2/瓦片_门_竖_上_关.png', 'map/tile_door_v_u_c.png'],
+  ['瓦片v2/瓦片_门_竖_下_关.png', 'map/tile_door_v_d_c.png'],  ['瓦片v2/瓦片_台面_木质桌面.png', 'map/tile_desk.png'],
 ];
 映射.push(...瓦片);
 

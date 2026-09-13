@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -22,6 +22,8 @@ import {
   瓦片,
   挡路瓦片,
   门配对,
+  门另一半,
+  通行瓦片,
   交互点表,
   道具表,
   占地表,
@@ -97,25 +99,36 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 某格的门开着吗（开着的门瓦片 = 门横/门竖） */
   private 门开着(x: number, y: number): boolean {
     const t = 网格[y]?.[x];
-    return t === 瓦片.门横 || t === 瓦片.门竖;
+    return 通行瓦片.includes(t);
+  }
+
+  /** 改一格门的瓦片 + 同步碰撞（putTileAt 换上来的新瓦片不会自动带挡路属性）*/
+  private 改门格(x: number, y: number, 号: number): void {
+    网格[y][x] = 号;
+    this.图层.putTileAt(号 as number, x, y);
+    const 挡 = 挡路瓦片.includes(号);
+    const t = this.图层.getTileAt(x, y);
+    t?.setCollision(挡, 挡, 挡, 挡, true);
   }
 
   /**
    * 开 / 关一扇门。
    * ⚠️ 改完瓦片要**手动设碰撞** —— putTileAt 换上去的新瓦片不会自动带上"挡路"属性
    *    （我是用 setCollision(索引数组) 设的，不是靠 tileset 自带属性）。
+   * ⚠️ 宽门占 **2 格**，另一半必须一起改，只改一格会出现"半扇门"。
    */
   开关门(x: number, y: number): void {
     const 旧 = 网格[y]?.[x];
     if (旧 === undefined) return;
     const 新 = 门配对[旧];
     if (新 === undefined) return;
-    网格[y][x] = 新;
-    // putTileAt 的索引参数被推断成了字面量联合类型，这里转成 number
-    this.图层.putTileAt(新 as number, x, y);
-    const 挡 = 挡路瓦片.includes(新);
-    const t = this.图层.getTileAt(x, y);
-    t?.setCollision(挡, 挡, 挡, 挡, true);
+    this.改门格(x, y, 新);
+    const 偏 = 门另一半[旧];
+    if (!偏) return;
+    const px = x + 偏[0];
+    const py = y + 偏[1];
+    const 另新 = 门配对[网格[py]?.[px]];
+    if (另新 !== undefined) this.改门格(px, py, 另新);
   }
 
   /** 开局扫一遍网格，把所有门的位置记下来 */
@@ -189,11 +202,15 @@ export class OfficeMapScene extends Phaser.Scene {
       'tile_wood',
       'tile_wall',
       'tile_glass',
-      'tile_door_h',
-      'tile_door_v',
+      'tile_door_h_l',
+      'tile_door_h_r',
+      'tile_door_v_u',
+      'tile_door_v_d',
+      'tile_door_h_l_c',
+      'tile_door_h_r_c',
+      'tile_door_v_u_c',
+      'tile_door_v_d_c',
       'tile_desk',
-      'tile_door_h_closed',
-      'tile_door_v_closed',
     ].entries()) {
       this.load.image(`t${i}`, `${基}${名}.png`);
     }
@@ -237,7 +254,7 @@ export class OfficeMapScene extends Phaser.Scene {
 
   /** 把 6 张瓦片拼成一张 6 格的 tileset 贴图 */
   private 建瓦片集(): void {
-    const 序 = ['t0', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 't10', 't11', 't12'];
+    const 序 = ['t0','t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12','t13','t14','t15','t16'];
     const cv = document.createElement('canvas');
     cv.width = 格 * 序.length;
     cv.height = 格;

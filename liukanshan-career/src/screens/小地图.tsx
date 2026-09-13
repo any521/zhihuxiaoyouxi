@@ -27,11 +27,15 @@ const 瓦片文件: Record<number, string> = {
   [瓦片.木地板]: 'tile_wood',
   [瓦片.白墙]: 'tile_wall',
   [瓦片.玻璃]: 'tile_glass',
-  [瓦片.门横]: 'tile_door_h',
-  [瓦片.门竖]: 'tile_door_v',
+  [瓦片.门横左]: 'tile_door_h_l',
+  [瓦片.门横右]: 'tile_door_h_r',
+  [瓦片.门竖上]: 'tile_door_v_u',
+  [瓦片.门竖下]: 'tile_door_v_d',
+  [瓦片.门横左关]: 'tile_door_h_l_c',
+  [瓦片.门横右关]: 'tile_door_h_r_c',
+  [瓦片.门竖上关]: 'tile_door_v_u_c',
+  [瓦片.门竖下关]: 'tile_door_v_d_c',
   [瓦片.桌面]: 'tile_desk',
-  [瓦片.门横关]: 'tile_door_h_closed',
-  [瓦片.门竖关]: 'tile_door_v_closed',
 };
 
 const 图缓存 = new Map<string, HTMLImageElement>();
