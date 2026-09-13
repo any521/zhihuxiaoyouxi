@@ -58,7 +58,7 @@ export function Opening(): ReactElement {
       <div key={开场格} className={`opening-shot ${镜.动效 ?? ''}`}>
         <img className="opening-bg" src={图} alt="" draggable={false} />
         <div className="opening-veil" />
-        <div className="opening-text">
+        <div className={`opening-text${镜.文字位 === '上' ? ' at-top' : ''}`}>
           {镜.大字 ? <div className="opening-big">{镜.大字}</div> : null}
           {镜.小字 ? <div className="opening-small">{镜.小字}</div> : null}
         </div>

@@ -16,6 +16,10 @@ export const 插图表 = {
   出租屋: 素材('bg_room.png'),
   招聘会: 素材('bg_jobfair.png'),
   办公室: 素材('bg_office.png'),
+  /* 开场专用（2026-09-13 补，替掉原来重复和场景不对的两格） */
+  接到电话: 素材('bg_open_call.png'),
+  写字楼门口: 素材('bg_open_tower.png'),
+  工位第一天: 素材('bg_open_desk.png'),
 } as const;
 export type 插图名 = keyof typeof 插图表;
 

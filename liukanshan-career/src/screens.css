@@ -100,6 +100,12 @@
   padding: 6vw;
 }
 
+/* 人物在画面中间的那几格：文字移到上三分之一，别压在人物脸上 */
+.opening-text.at-top {
+  justify-content: flex-start;
+  padding-top: 8vh;
+}
+
 /* 字号只取 12 的整数倍：36 / 48 / 60 / 72 */
 .opening-big {
   font-size: 60px;
@@ -451,16 +457,22 @@
   display: grid;
   place-items: center;
   appearance: none;
+  -webkit-appearance: none;
+  /* ⚠️ 必须清 padding：button 的默认 padding 会把内容框挤到右边，
+      即使 place-items:center 也救不回来（实测图标明显偏右）。 */
+  padding: 0;
   border: 2px solid transparent;
   background: transparent;
   cursor: pointer;
   opacity: 0.65;
+  line-height: 0;
   transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s, opacity 0.14s;
 }
 
 .wc-list-search img {
   width: 17px;
   height: 17px;
+  display: block;
   image-rendering: pixelated;
 }
 
