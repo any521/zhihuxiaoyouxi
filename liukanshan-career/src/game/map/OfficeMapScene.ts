@@ -165,30 +165,77 @@ export class OfficeMapScene extends Phaser.Scene {
    *
    * @returns 真的坐下了就 true（不在座位上 / 没那套素材 → false）
    */
+  /**
+   * 这个座位**现在有没有人坐**（同事占着的不能坐 —— 用户要求"可以坐有人的位置上解决"）。
+   * ⚠️ 用同事的**逻辑格**判（坐着的同事被抬高了，按像素会差一行）。
+   */
+  座位有人(座: 座位): boolean {
+    return this.NPC们.some((s) => {
+      const g = this.NPC所在格(s);
+      return g.x === 座.x && g.y === 座.y;
+    });
+  }
+
+  /** 找座位（跳过有人的），半径内没有空位就返回 null */
+  private 找空座位(位: { x: number; y: number }): 座位 | null {
+    // 逐个候选按"由近到远"试：`找附近座位` 只给最近的一个，
+    // 它要是被占了还得看下一个，所以这里自己遍历一遍（座位表只有 20 多条）。
+    //
+    // ⚠️ **同格优先**：玩家正好站在某件座位上时，先试那一件 ——
+    //    它被占了就**直接判"坐不下"**，不能"溜到旁边那件"（踩过：
+    //    站在周岚的工位椅上按空格，人坐到了隔壁 17,4 的单人沙发上，
+    //    看着像"坐到别人位置上去了"）。
+    let 最好: { 座: 座位; 格距: number; 实距: number } | null = null;
+    for (const 座 of 座位表) {
+      const dx = 座.x - 位.x;
+      const dy = 座.y - 位.y;
+      const 格距 = Math.max(Math.abs(dx), Math.abs(dy));
+      if (格距 > 1.6) continue;
+      if (this.座位有人(座)) continue; // ⚠️ 有人坐的不算
+      const 实距 = dx * dx + dy * dy;
+      if (
+        !最好 ||
+        格距 < 最好.格距 ||
+        (格距 === 最好.格距 && 实距 < 最好.实距)
+      ) {
+        最好 = { 座, 格距, 实距 };
+      }
+    }
+    // 脚下那一格如果**本来就有座位**（不管有没有人），就只认它
+    const 脚下 = 座位表.find((c) => c.x === 位.x && c.y === 位.y);
+    if (脚下) return this.座位有人(脚下) ? null : 脚下;
+    return 最好?.座 ?? null;
+  }
+
+  /**
+   * 坐下（只能坐在 `座位表` 里、**而且没被人占**的位子上）。
+   * 姿势按 `坐哪套()` 自动选 —— 工位背面、其它地方正面。
+   *
+   * @returns 真的坐下了就 true（附近没空位 / 没那套素材 → false）
+   */
   坐下(): boolean {
     if (this.主角坐着) return true;
     const 位 = this.位置();
-    // ⚠️ **在椅子附近就能坐**（用户要求："只要是在椅子附近就能坐下，
-    //    不是只能在椅子前面或后面"）。所以不是"这一格必须是座位"，
-    //    而是"半径内最近的座位是哪把"（`找附近座位`，1.6 格 ≈ 前后左右 + 斜角）。
-    const 近 = 找附近座位(位.x, 位.y);
-    if (!近) return false; // 附近没有椅子
-    const 套 = this.坐哪套(近.座位.x, 近.座位.y);
+    // ⚠️ **在椅子附近就能坐**（用户要求"只要是在椅子附近就能坐下"），
+    //    但**有人坐着的椅子要跳过**（用户要求"可以坐有人的位置上解决"）。
+    const 座 = this.找空座位(位);
+    if (!座) return false; // 附近没有空椅子
+    const 套 = this.坐哪套(座.x, 座.y);
     if (!套) return false;
     const key = 套 === 'front' ? '坐正_刘看山' : '坐_刘看山';
     if (!this.anims.exists(key)) return false;
     this.主角坐着 = true;
     // 坐下时**把人挪到那把椅子上**（从"站在旁边"挪到"坐在上面"）
-    const 椅 = this.格到像素(近.座位.x, 近.座位.y);
+    const 椅 = this.格到像素(座.x, 座.y);
     this.站着脚底 = 椅.y;
-    this.坐的座位 = 近.座位;
+    this.坐的座位 = 座;
     this.主角.anims.stop();
     this.主角.anims.play(key, true);
     // ⚠️ **横向也要挪到椅子上**（别只改 y —— 踩过：站在椅子左边按空格，
     //    人只在原地升高，看着像"浮在旁边的空中"）。
     this.主角.x = 椅.x;
     // 往上抬到**这把椅子自己的座面高度**（每张座位记了 `偏移Y`，见 `level.ts`）
-    this.主角.y = 椅.y + 近.座位.偏移Y;
+    this.主角.y = 椅.y + 座.偏移Y;
     this.主角.setDepth(this.坐姿深度(套, this.主角.y));
     this.回调?.坐姿变了?.(true);
     return true;
