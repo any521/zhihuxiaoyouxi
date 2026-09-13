@@ -67,6 +67,17 @@ export interface 地图回调 {
   附近道具变了?: (物: 附近物 | null) => void;
   /** 附近的**同事**变了（靠近同事时弹人物卡） */
   附近人变了?: (名: string | null) => void;
+  /**
+   * 玩家**脚下是不是椅子**变了（换成椅子上/走开时各报一次）。
+   * 用来决定"按空格是坐下/站起来，还是普通交互"。
+   */
+  站在座位上变了?: (在座位上: boolean, 格: { x: number; y: number }) => void;
+  /**
+   * 坐姿变了（坐下/站起来时各报一次）。
+   * ⚠️ 和"站没站在椅子上"是**两件事**：站在椅子上但还没坐，也是"在座位上"。
+   *    界面上"空格 坐下看看 / 站起来"要的是这个。
+   */
+  坐姿变了?: (坐着: boolean) => void;
 }
 
 /**
@@ -108,6 +119,10 @@ export class OfficeMapScene extends Phaser.Scene {
   private 门体 = new Map<string, { 关挡: Phaser.GameObjects.Rectangle; 开挡: Phaser.GameObjects.Rectangle }>();
   private 通行表: Uint8Array | null = null;
   private 朝向 = 0;
+  /** 主角现在坐着吗（坐在工位/茶水间的椅子上）。坐着时走路会先站起来。 */
+  private 主角坐着 = false;
+  /** 上一帧玩家是不是站在椅子上（只在变化时回报，省得每帧刷 store） */
+  private 上次在座位 = false;
   private 目标 = 交互点表[0] as 交互点 | undefined;
 
   constructor() {
@@ -122,6 +137,59 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 换一个导航目标（指引线指向它） */
   设目标(id: string | null): void {
     this.目标 = id ? 交互点表.find((p) => p.id === id) : undefined;
+  }
+
+  /**
+   * 主角坐下 / 站起来（在交互点上按空格时由 React 层调）。
+   *
+   * 用**哪套坐姿**和同事完全一样的规则（`坐哪套()`）：
+   *   · 开放办公区 / 总监办公室的转椅 → 背面坐姿（背对走廊打字，这是他的工位）
+   *   · 茶水间 / 会议室 的椅子       → 正面坐姿（面对同事说话）
+   * 所以"主角坐工位"和"主角坐茶水间"自动是不同的姿势，不用在剧情里手写。
+   *
+   * ⚠️ 只能坐在 `座位表` 里的格子上（不然会"坐在空中"）。
+   */
+  坐下还是站起(): boolean {
+    const 位 = this.位置();
+    if (this.主角坐着) {
+      this.站起来();
+      return true;
+    }
+    const 套 = this.坐哪套(位.x, 位.y);
+    if (!套) return false; // 这格不是座位
+    const key = 套 === 'front' ? `坐正_刘看山` : `坐_刘看山`;
+    if (!this.anims.exists(key)) return false;
+    this.主角坐着 = true;
+    // 坐姿素材是"腰部以下留空"的，锚点仍在脚底 —— 位置不用动，直接把贴图换成坐姿
+    this.主角.anims.stop();
+    this.主角.anims.play(key, true);
+    this.回调?.坐姿变了?.(true);
+    return true;
+  }
+
+  /** 从坐姿站起来（回待机帧）。走路时也会自动调它。 */
+  站起来(): void {
+    if (!this.主角坐着) return;
+    this.主角坐着 = false;
+    this.主角.anims.stop();
+    this.主角.setTexture('lks_idle', this.朝向);
+    this.回调?.坐姿变了?.(false);
+  }
+
+  /** 主角现在坐着吗（React 侧显示"站起来"提示用） */
+  在坐着(): boolean {
+    return this.主角坐着;
+  }
+
+  /**
+   * 调试用：主角当前播的是哪套坐姿（'back' / 'front' / null = 没坐）。
+   * 给 `tools/坐姿体检.mjs` 用 —— 那个脚本要断言"工位坐背面、茶水间坐正面"。
+   */
+  坐姿套(): 'back' | 'front' | null {
+    const k = this.主角.anims.currentAnim?.key;
+    if (k === '坐_刘看山') return 'back';
+    if (k === '坐正_刘看山') return 'front';
+    return null;
   }
 
   /** 某格的门开着吗（开着的门瓦片 = 门横/门竖） */
@@ -628,7 +696,22 @@ export class OfficeMapScene extends Phaser.Scene {
     this.排序遮挡();
     this.查交互();
     this.查附近物();
+    this.查站在座位上();
     this.画指引线();
+  }
+
+  /**
+   * 报"玩家脚下是不是一把椅子"（决定按空格是坐下/站起来，还是普通交互）。
+   *
+   * ⚠️ 和 `查附近物()` 共用"只在换格时重算"的思路：只跟人在哪一格有关。
+   * ⚠️ 用 `格()` 取整格，不是拿像素比 —— 座位表是格坐标。
+   */
+  private 查站在座位上(): void {
+    const 位 = this.位置();
+    const 在座位上 = this.是椅子(位.x, 位.y);
+    if (在座位上 === this.上次在座位) return;
+    this.上次在座位 = 在座位上;
+    this.回调?.站在座位上变了?.(在座位上, 位);
   }
 
   /**
@@ -779,12 +862,16 @@ export class OfficeMapScene extends Phaser.Scene {
     else if (vy > 0) this.朝向 = 0;
 
     const 在走 = vx !== 0 || vy !== 0;
+    // ⚠️ 坐着的时候一按方向键就**站起来**（不用额外按键，和大多数游戏一样）
+    if (在走 && this.主角坐着) this.站起来();
     if (在走) {
       const key = `走${['下', '上', '左', '右'][this.朝向]}`;
       if (this.主角.anims.currentAnim?.key !== key) this.主角.anims.play(key, true);
       // 走的时候按住 Shift 加速（跑）
       const 加速 = this.光标?.shift.isDown ? 1.7 : 1;
       b.setVelocity(vx * 速度 * 加速, vy * 速度 * 加速);
+    } else if (this.主角坐着) {
+      // 坐着：停在那儿不动，姿势由 坐下()/站起来() 控制，别每帧覆盖
     } else {
       this.主角.anims.stop();
       this.主角.setTexture('lks_idle', this.朝向);

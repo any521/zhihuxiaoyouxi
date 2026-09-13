@@ -470,6 +470,8 @@ export function Avg(): ReactElement {
   const 待选择 = useStory((s) => s.待选择);
   const 待接受邀请 = useStory((s) => s.待接受邀请);
   const 待暂停 = useStory((s) => s.待暂停);
+  const 待去房间 = useStory((s) => s.待去房间);
+  const 去房间 = useStory((s) => s.去房间);
   const 播完 = useStory((s) => s.播完);
   const 指标 = useStory((s) => s.指标);
   const 速度 = useStory((s) => s.速度);
@@ -505,12 +507,14 @@ export function Avg(): ReactElement {
   useEffect(() => {
     if (屏幕 !== 'avg') return;
     if (!是活跃) return; // 玩家正在看别的会话，别在背后推进
-    if (待选择 || 待接受邀请 || 待暂停 || 播完) return;
+    // ⚠️ `待去房间` 也要停：播到「去房间」就等玩家点"去 XX ▸"，
+    //    不然自动推进会直接跳过那一步、把屏幕切到地图（用户看到的"微信被强制关闭"）
+    if (待选择 || 待接受邀请 || 待暂停 || 播完 || 待去房间) return;
     const 本 = 队列[位置];
     // 倍速只影响等待时长；点聊天区仍然能立刻推进
     const t = window.setTimeout(() => 推进一步(), (本 ? 剧情间隔(本) : 900) / 速度);
     return () => window.clearTimeout(t);
-  }, [屏幕, 是活跃, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
+  }, [屏幕, 是活跃, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 待去房间, 推进一步, 速度]);
 
   // 新消息滚到底
   /* 键盘：Tab 收起手机回地图；空格和点聊天区一样推进 */
@@ -738,7 +742,20 @@ export function Avg(): ReactElement {
             </button>
           ) : null}
 
-          {!待选择 && !待接受邀请 && !待暂停 && !播完 ? (
+          {/* 「去房间」：玩家点一下才切地图（不然自动推进会自己把屏幕切走） */}
+          {待去房间 ? (
+            <button
+              className="wc-btn"
+              {...按钮反馈(() => {
+                播放('按钮');
+                去房间();
+              })}
+            >
+              去 {待去房间.去哪} ▸
+            </button>
+          ) : null}
+
+          {!待选择 && !待接受邀请 && !待暂停 && !待去房间 && !播完 ? (
             <div className="wc-hint">点聊天区或按空格加速 ▸</div>
           ) : null}
 

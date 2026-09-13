@@ -59,6 +59,11 @@ export function MapScreen(): ReactElement {
   const 设附近物 = useStory((s) => s.设附近物);
   const 附近人 = useStory((s) => s.附近人);
   const 设附近人 = useStory((s) => s.设附近人);
+  /** 玩家脚下是不是椅子（按空格 = 坐下/站起来） */
+  const 设站在座位上 = useStory((s) => s.设站在座位上);
+  /** 已经坐着了（提示显示"站起来"） */
+  const 坐着 = useStory((s) => s.坐着);
+  const 站在座位上 = useStory((s) => s.站在座位上);
   /** 「去房间」时底部提示要改的话（例如"小鹿在工位上等你"） */
   const 续播提示 = useStory((s) => s.续播提示);
   const 目标id = useStory((s) => s.地图目标);
@@ -131,9 +136,17 @@ export function MapScreen(): ReactElement {
             附近门ref.current = 门;
             set附近门(门);
           },
-          // 靠近家具/门 → 弹「这东西是干嘛的」卡片
+          // 玩家脚下是不是椅子（按空格能不能坐下）—— 场景每帧回报变化
           附近道具变了: (物) => {
             设附近物(物);
+          },
+          // 每帧回报"脚下是不是椅子"，用来决定空格是坐下还是交互
+          站在座位上变了: (在座位上, 格) => {
+            设站在座位上(在座位上, 格);
+          },
+          // 坐下/站起来：单独一条回调（"在座位上"和"已经坐着"是两件事）
+          坐姿变了: (在坐着) => {
+            设站在座位上(useStory.getState().站在座位上, undefined, 在坐着);
           },
           // 靠近同事 → 弹人物卡（他是谁 / 现在有没有戏）
           附近人变了: (名) => {
@@ -182,6 +195,13 @@ export function MapScreen(): ReactElement {
     if (!就绪) return;
     场景.current?.换NPC(段号);
   }, [段号, 就绪]);
+
+  /* ── 剧情里按了空格要"坐下/站起来"：计数器一变就执行一次 ── */
+  const 坐下请求 = useStory((s) => s.坐下请求);
+  useEffect(() => {
+    if (!就绪 || 坐下请求 === 0) return;
+    场景.current?.坐下还是站起();
+  }, [坐下请求, 就绪]);
 
   /* ── 键盘：Tab 掏手机 / Esc 设置 / 空格 交互 ── */
   const 按键 = useCallback(
@@ -319,6 +339,13 @@ export function MapScreen(): ReactElement {
             {是主线 && 续播提示 ? 续播提示 : 附近点.提示}
           </span>
           {是主线 ? <span className="map-prompt-star">主线</span> : null}
+        </div>
+      ) : 站在座位上 ? (
+        // 脚下是椅子、但当下的交互点不在这儿（没有可选的事）→ 提示可以直接坐
+        <div className="map-prompt seat">
+          <b>{坐着 ? '坐着' : '椅子'}</b>
+          <span className="map-prompt-key">空格</span>
+          <span className="map-prompt-act">{坐着 ? '站起来' : '坐下看看'}</span>
         </div>
       ) : null}
 

@@ -51,6 +51,7 @@ const 状态 = () =>
       目标: s.地图目标,
       续播: s.续播,
       续播提示: s.续播提示,
+      待去房间: s.待去房间,
       待暂停: s.待暂停,
       本条: s.队列[s.位置]?.类型 ?? null,
       下一条: s.队列[s.位置 + 1]?.类型 ?? null,
@@ -61,8 +62,12 @@ console.log('=== ① 播到「去房间」应该切回地图并停住 ===\n');
 let 到了 = null;
 for (let i = 0; i < 40; i += 1) {
   const s = await 状态();
-  if (s.续播) {
-    到了 = s;
+  // ⚠️ 2026 改版：播到「去房间」只会**登记** 待去房间、不切屏（等玩家点按钮）。
+  //    所以这里推到"待去房间"出现，再调 去房间() 模拟玩家点按钮。
+  if (s.待去房间) {
+    await 页.evaluate(() => window.__lksStory.getState().去房间());
+    await 等(150);
+    到了 = await 状态();
     break;
   }
   await 页.evaluate(() => window.__lksStory.getState().推进一步());
