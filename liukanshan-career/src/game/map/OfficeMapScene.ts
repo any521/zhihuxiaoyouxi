@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -22,7 +22,9 @@ import {
   瓦片,
   交互点表,
   道具表,
-  NPC表,
+  占地表,
+  取NPC,
+  type NPC位,
   type 交互点,
 } from './level';
 
@@ -54,6 +56,10 @@ export class OfficeMapScene extends Phaser.Scene {
   private 光标!: Phaser.Types.Input.Keyboard.CursorKeys;
   private WASD?: Record<string, Phaser.Input.Keyboard.Key>;
   private 图层!: Phaser.Tilemaps.TilemapLayer;
+  /** 所有挡路的东西（家具 + 同事）*/
+  private 挡路!: Phaser.Physics.Arcade.StaticGroup;
+  private NPC们: Phaser.GameObjects.Sprite[] = [];
+  private 段号 = 1;
   private 指引线!: Phaser.GameObjects.Graphics;
   private 脚下影!: Phaser.GameObjects.Ellipse;
   private 回调?: 地图回调;
@@ -82,9 +88,17 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角.body?.reset(p.x, p.y);
   }
 
-  /** 调试用：读主角当前所在瓦片 */
+  /** 调试用：读主角当前所在瓦片（用 floor —— round 会把"刚好停在物体边缘"读成下一格，误导判断）*/
   位置(): { x: number; y: number } {
-    return { x: Math.round((this.主角.x - 格 / 2) / 格), y: Math.round((this.主角.y - 格) / 格) };
+    return {
+      x: Math.floor((this.主角.x - 格 / 2) / 格),
+      y: Math.floor((this.主角.y - 格) / 格),
+    };
+  }
+
+  /** 调试用：主角的精确像素坐标 */
+  精确位置(): { x: number; y: number } {
+    return { x: Math.round(this.主角.x), y: Math.round(this.主角.y) };
   }
 
   preload(): void {
@@ -105,14 +119,18 @@ export class OfficeMapScene extends Phaser.Scene {
     // 角色精灵表：不切，按 frameWidth/frameHeight 交给 Phaser
     this.load.spritesheet('lks_walk', `${基}chr_lks_walk.png`, { frameWidth: 32, frameHeight: 48 });
     this.load.spritesheet('lks_idle', `${基}chr_lks_idle.png`, { frameWidth: 32, frameHeight: 48 });
-    for (const n of NPC表) {
-      if (!this.textures.exists(n.图)) {
-        this.load.spritesheet(n.图, `${基}${n.图}.png`, { frameWidth: 32, frameHeight: 48 });
+    // 同事的站位会随剧情换，所以**所有段出现过的**都要预加载，不能只加载当前段的
+    const 所有NPC = new Set<string>();
+    for (let i = 0; i < 8; i += 1) for (const n of 取NPC(i)) 所有NPC.add(n.图);
+    for (const key of 所有NPC) {
+      if (!this.textures.exists(key)) {
+        this.load.spritesheet(key, `${基}${key}.png`, { frameWidth: 32, frameHeight: 48 });
       }
     }
   }
 
   create(): void {
+    this.挡路 = this.physics.add.staticGroup();
     this.建瓦片集();
     this.建图层();
     this.建动画();
@@ -189,15 +207,54 @@ export class OfficeMapScene extends Phaser.Scene {
       //    它们视觉上往上挪了，但深度必须比桌子**大**才不会被桌子盖住，
       //    所以加 0.5 让它紧贴在桌子之后画。第一次没加，桌上的东西全被吃掉了。
       s.setDepth(y + (p.偏移Y !== undefined ? 0.5 : 0));
+
+      // 桌面小物不挡路（它们摆在桌面上，人撞不到）
+      if (p.偏移Y !== undefined) continue;
+
+      // 家具：加一个**贴地的占地**静态碰撞体。
+      // ⚠️ 不能拿整张 44×48 的精灵当碰撞体 —— 那样人离桌子还有半个身位就被挡住。
+      const [宽, 高] = 占地表[p.图] ?? [s.width * 0.85, s.height * 0.4];
+      this.加占地(s, 宽, 高);
     }
   }
 
+  /** 给一个"脚底在 (x,y)"的对象加贴地静态碰撞体 */
+  private 加占地(
+    目标: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite,
+    宽: number,
+    高: number,
+  ): void {
+    this.physics.add.existing(目标, true);
+    const body = 目标.body as Phaser.Physics.Arcade.StaticBody | null;
+    if (!body) return;
+    body.setSize(宽, 高);
+    // 静态体的坐标是左上角；精灵的脚底在 (目标.x, 目标.y)
+    body.position.set(目标.x - 宽 / 2, 目标.y - 高);
+    body.updateCenter();
+    this.挡路.add(目标);
+  }
+
   private 建NPC(): void {
-    for (const n of NPC表) {
+    this.建NPC批(取NPC(this.段号));
+  }
+
+  /** 按剧情换一批同事站位（销毁旧的、建新的） */
+  换NPC(段号: number): void {
+    this.段号 = 段号;
+    for (const s of this.NPC们) s.destroy();
+    this.NPC们 = [];
+    this.建NPC批(取NPC(段号));
+  }
+
+  private 建NPC批(排布: NPC位[]): void {
+    for (const n of 排布) {
       const { x, y } = this.格到像素(n.x, n.y);
       const s = this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
       s.setOrigin(0.5, 1);
       s.setDepth(y);
+      // 同事也挡路（不能从人身上穿过去）
+      this.加占地(s, 22, 14);
+      this.NPC们.push(s);
     }
   }
 
@@ -212,6 +269,8 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角.setCollideWorldBounds(true);
     this.主角.setDepth(y);
     this.physics.add.collider(this.主角, this.图层);
+    // 家具和同事都挡路：人不能穿模
+    this.physics.add.collider(this.主角, this.挡路);
   }
 
   private 建镜头(): void {

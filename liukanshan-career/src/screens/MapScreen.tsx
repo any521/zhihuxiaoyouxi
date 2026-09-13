@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 地图模式的 React 外壳。
  *
  * 分工：Phaser 只画像素（瓦片/道具/角色），**文字一律 DOM** ——
@@ -28,6 +28,7 @@ export function MapScreen(): ReactElement {
   const 地图交互 = useStory((s) => s.地图交互);
   const 掏手机 = useStory((s) => s.掏手机);
   const 段标签 = useStory((s) => s.段标签);
+  const 段号 = useStory((s) => s.段号);
 
   /* ── 启动 Phaser（只启动一次）── */
   useEffect(() => {
@@ -95,6 +96,12 @@ export function MapScreen(): ReactElement {
     if (!就绪) return;
     场景.current?.设目标(目标id);
   }, [目标id, 就绪]);
+
+  /* ── 剧情推进了：换一批同事站位 ── */
+  useEffect(() => {
+    if (!就绪) return;
+    场景.current?.换NPC(段号);
+  }, [段号, 就绪]);
 
   /* ── 键盘：空格交互、Esc 掏手机 ──
      两个键都在 React 层判，不在 Phaser 里判：
