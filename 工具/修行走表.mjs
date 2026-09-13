@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 修行走表的"回头帧"（零依赖）
  *
  * 问题：`角色_刘看山_四方向行走16帧_32x48.png` 的第 4 行（朝右）里，
@@ -12,7 +12,7 @@
  *
  * 用法：node 工具/修行走表.mjs
  */
-import { mkdirSync, copyFileSync } from 'node:fs';
+import { mkdirSync, copyFileSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { 读取PNG, 写入PNG } from './图像库.mjs';
 
@@ -61,8 +61,17 @@ for (let 列 = 0; 列 < 列数; 列 += 1) {
 
 mkdirSync(出目录, { recursive: true });
 const 成品 = { width: 图.width, height: 图.height, rgb: 出, ...(出alpha ? { alpha: 出alpha } : {}) };
-写入PNG(join(出目录, '角色_刘看山_四方向行走16帧_32x48_已修.png'), 成品);
-copyFileSync(join(出目录, '角色_刘看山_四方向行走16帧_32x48_已修.png'), 游戏);
+const 已修路径 = join(出目录, '角色_刘看山_四方向行走16帧_32x48_已修.png');
+写入PNG(已修路径, 成品);
+
+// ⚠️ **必须同时覆盖"成品"目录里的源文件**。
+//    只写 _已修/ 和游戏目录是不够的 —— 之后只要再跑一次 工具/接入地图素材.mjs，
+//    它会从成品目录重新拷贝，把修复整个盖掉（这就是这个 bug 复发的原因）。
+//    先备份一份原始文件。
+const 备份 = 源.replace(/\.png$/, '_原始备份.png');
+if (!existsSync(备份)) copyFileSync(源, 备份);
+写入PNG(源, 成品);
+copyFileSync(已修路径, 游戏);
 
 console.log(`  第 ${左行 + 1} 行（朝左）水平镜像 → 第 ${右行 + 1} 行（朝右）`);
 console.log(`  重写了 ${改了几个} 个像素`);

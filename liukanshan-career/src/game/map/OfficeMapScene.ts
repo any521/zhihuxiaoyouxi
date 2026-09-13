@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -46,6 +46,9 @@ const 方向行 = [0, 1, 2, 3];
 
 /** NPC 朝向 → 精灵表帧号（精灵表是 ①下 ②左 ③右 / ④上 ⑤点头 ⑥说话） */
 const NPC朝向帧 = [0, 3, 1, 2];
+
+/** 有坐姿动画的七个角色（文件名 = sit_名字.png）*/
+const 有坐姿 = ['刘看山', '周岚', '阿麦', '韩策', '小鹿', '林总', '程女士'];
 
 export interface 地图回调 {
   /** 附近的交互点变了（null = 附近没有） */
@@ -194,6 +197,10 @@ export class OfficeMapScene extends Phaser.Scene {
     ].entries()) {
       this.load.image(`t${i}`, `${基}${名}.png`);
     }
+    // 坐姿表：4 帧 × 32×48 横排，直接当 spritesheet 用
+    for (const 名 of 有坐姿) {
+      this.load.spritesheet(`sit_${名}`, `${基}sit_${名}.png`, { frameWidth: 32, frameHeight: 48 });
+    }
     for (const p of 道具表) {
       if (!this.textures.exists(p.图)) this.load.image(p.图, `${基}${p.图}.png`);
     }
@@ -215,6 +222,7 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建瓦片集();
     this.建图层();
     this.建动画();
+    this.建坐姿动画();
     this.建道具();
     this.建NPC();
     this.建主角();
@@ -272,6 +280,19 @@ export class OfficeMapScene extends Phaser.Scene {
     });
   }
 
+  /** 坐姿打字循环（每个角色一套）*/
+  private 建坐姿动画(): void {
+    for (const 名 of 有坐姿) {
+      if (this.anims.exists(`坐_${名}`)) continue;
+      this.anims.create({
+        key: `坐_${名}`,
+        frames: this.anims.generateFrameNumbers(`sit_${名}`, { frames: [0, 1, 2, 3] }),
+        frameRate: 3, // 打字的小幅起伏，慢一点才像呼吸
+        repeat: -1,
+      });
+    }
+  }
+
   private 建道具(): void {
     for (const p of 道具表) {
       const { x, y } = this.格到像素(p.x, p.y);
@@ -322,10 +343,20 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建NPC批(取NPC(段号));
   }
 
+  /** 这个格子是不是"转椅"（站在椅子上 = 坐着）*/
+  private 是椅子(x: number, y: number): boolean {
+    return 道具表.some((p) => p.图 === 'prop_ws_转椅' && p.x === x && p.y === y);
+  }
+
   private 建NPC批(排布: NPC位[]): void {
     for (const n of 排布) {
       const { x, y } = this.格到像素(n.x, n.y);
-      const s = this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
+      // 坐在椅子上 → 用坐姿动画；否则用站立朝向帧
+      const 坐 = this.是椅子(n.x, n.y) && 有坐姿.includes(n.名) && this.textures.exists(`sit_${n.名}`);
+      const s = 坐
+        ? this.add.sprite(x, y, `sit_${n.名}`, 0)
+        : this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
+      if (坐) s.anims.play(`坐_${n.名}`, true);
       s.setOrigin(0.5, 1);
       s.setDepth(y);
       // 同事也挡路（不能从人身上穿过去）
