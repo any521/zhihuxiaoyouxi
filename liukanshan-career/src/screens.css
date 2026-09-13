@@ -239,8 +239,13 @@
   display: grid;
   place-items: center;
   opacity: 0.62;
-  border: 2px solid transparent;
   transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s, opacity 0.14s;
+}
+
+/* ⚠️ 必须写成 button.wc-icon：上面 .wc-rail button 的 border:0 优先级更高，
+   只写 .wc-icon 的话边框会被吃掉，选中态就少了那圈浅绿描边。 */
+.wc-rail button.wc-icon {
+  border: 2px solid transparent;
 }
 
 .wc-icon:hover {
