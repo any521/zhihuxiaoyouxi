@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -131,6 +131,58 @@ export class OfficeMapScene extends Phaser.Scene {
     if (另新 !== undefined) this.改门格(px, py, 另新);
   }
 
+  /**
+   * 给门的**门框**加碰撞。
+   *
+   * 为什么需要：门瓦片整格都是"不挡路"的（不然开关门要改碰撞），
+   * 所以人可以在整格 64px 里随便走 —— 会**蹭到门框的墙垛上**，看着像穿模。
+   *
+   * 做法：在每扇门的两侧各放一个静态碰撞体（门框宽度），把**实际可走宽度收到 51px**
+   * （= 64 × 0.8，用户要求的 0.8 倍）。这样人只能从中间过，不会蹭到框。
+   * 门框是固定的，不随开关变化，所以这些碰撞体建一次就行。
+   */
+  private 建门框碰撞(): void {
+    /** 门框宽度（每侧）—— 2 格 64px 减去两侧 6.5px ≈ 51px */
+    const 框宽 = 6.5;
+    /** 已经加过框的门（一扇门两格，别加两次）*/
+    const 加过 = new Set<string>();
+
+    for (const d of this.门们) {
+      const 号 = 网格[d.y]?.[d.x];
+      const 偏 = 门另一半[号];
+      if (!偏) continue;
+      // 用两格中"起始那格"做键，一扇门只处理一次
+      const 头x = 偏[0] > 0 ? d.x : 偏[0] < 0 ? d.x + 偏[0] : d.x;
+      const 头y = 偏[1] > 0 ? d.y : 偏[1] < 0 ? d.y + 偏[1] : d.y;
+      const 键 = `${头x},${头y}`;
+      if (加过.has(键)) continue;
+      加过.add(键);
+
+      const 是横门 = 偏[0] !== 0;
+      // 门占据的像素范围
+      const 起px = 是横门 ? 头x * 格 : 头x * 格;
+      const 起py = 是横门 ? 头y * 格 : 头y * 格;
+
+      if (是横门) {
+        // 横门：左右各一块门框，高占满这一行
+        const 左 = this.add.rectangle(起px + 框宽 / 2, 起py + 格 / 2, 框宽, 格);
+        const 右 = this.add.rectangle(起px + 格 * 2 - 框宽 / 2, 起py + 格 / 2, 框宽, 格);
+        for (const r of [左, 右]) {
+          this.physics.add.existing(r, true);
+          this.挡路.add(r);
+        }
+      } else {
+        // 竖门：上下各一块
+        const 上 = this.add.rectangle(起px + 格 / 2, 起py + 框宽 / 2, 格, 框宽);
+        const 下 = this.add.rectangle(起px + 格 / 2, 起py + 格 * 2 - 框宽 / 2, 格, 框宽);
+        for (const r of [上, 下]) {
+          this.physics.add.existing(r, true);
+          this.挡路.add(r);
+        }
+      }
+    }
+  }
+
   /** 开局扫一遍网格，把所有门的位置记下来 */
   private 找门(): void {
     this.门们 = [];
@@ -248,6 +300,7 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建输入();
     this.建指引线();
     this.找门();
+    this.建门框碰撞();
   }
 
   /* ───────── 搭建 ───────── */
