@@ -93,48 +93,74 @@ if (!到了) {
   await 浏览器.close();
   process.exit(1);
 }
-console.log(`  第一个「去房间」：去哪=${到了.待去房间.去哪}`);
+console.log(`  第一趟「去房间」：去哪=${到了.待去房间.去哪}`);
 断言(到了.待去房间.去哪 === '林总办公室', `第一趟是去老板办公室（实际 ${到了.待去房间.去哪}）`);
 
-// 走完老板办公室那一趟，继续推到**第二个**「去房间」——那一个才是"去茶水间找小鹿"
-console.log('\n=== ② 继续推到第二个「去房间」（应该是茶水间）===\n');
+console.log('\n=== ② 三趟房间的顺序必须是 老板办公室 → 我的工位 → 茶水间 ===\n');
+/** 通用：点「去房间」→ 走过去 → 继续推到下一个「去房间」或者段末 */
+async function 走一趟() {
+  await 页.evaluate(() => window.__lksStory.getState().去房间());
+  await 等(300);
+  await 页.evaluate(() => {
+    const st = window.__lksStory.getState();
+    if (st.续播) st.地图交互(st.续播.去哪);
+  });
+  await 等(350);
+  for (let i = 0; i < 120; i += 1) {
+    const s = await 读剧情();
+    if (s.待去房间 || s.待暂停) return s;
+    if (s.待选择) {
+      await 页.evaluate(() => window.__lksStory.getState().选择(0));
+      await 等(120);
+      continue;
+    }
+    if (s.屏幕 === 'map' && s.续播) {
+      await 页.evaluate(() => {
+        const st = window.__lksStory.getState();
+        if (st.续播) st.地图交互(st.续播.去哪);
+      });
+      await 等(200);
+      continue;
+    }
+    await 页.evaluate(() => window.__lksStory.getState().推进一步());
+    await 等(35);
+  }
+  return null;
+}
+
+const 第二 = await 走一趟();
+console.log(`  第二趟：去哪=${第二?.待去房间?.去哪 ?? '（段末）'}`);
+断言(第二?.待去房间?.去哪 === '我的工位', `第二趟是回工位（实际 ${第二?.待去房间?.去哪}）`);
+
+// 这一趟要真的看一眼"小鹿在工位上"
 await 页.evaluate(() => window.__lksStory.getState().去房间());
-await 等(300);
-await 页.evaluate(() => window.__lksStory.getState().地图交互('林总办公室'));
-await 等(300);
-let 到了2 = null;
-for (let i = 0; i < 120; i += 1) {
-  const s = await 读剧情();
-  if (s.待去房间) {
-    到了2 = s;
-    break;
-  }
-  // ⚠️ 事件二里夹着一个**选项**（林总那段）：不选它就永远走不动。
-  //    测试要点它，不然会"推 80 步都没到"（踩过）。
-  if (s.待选择) {
-    await 页.evaluate(() => window.__lksStory.getState().选择(0));
-    await 等(120);
-    continue;
-  }
-  // 中途如果又切回地图（`去房间` 之后），替玩家点一下"走过去"
-  if (s.屏幕 === 'map' && s.续播) {
-    await 页.evaluate(() => {
-      const st = window.__lksStory.getState();
-      if (st.续播) st.地图交互(st.续播.去哪);
-    });
-    await 等(200);
-    continue;
-  }
-  await 页.evaluate(() => window.__lksStory.getState().推进一步());
-  await 等(35);
-}
-if (!到了2) {
-  console.log('  ✗ 没推到第二个「去房间」');
-  await 浏览器.close();
-  process.exit(1);
-}
-console.log(`  第二个「去房间」：去哪=${到了2.待去房间.去哪}`);
-断言(到了2.待去房间.去哪 === '茶水间', `第二趟是去茶水间（实际 ${到了2.待去房间.去哪}）`);
+await 等(600);
+const 工位人 = await 读人();
+const 鹿在工位 = 工位人.find((p) => p.名 === '小鹿');
+console.log('  回工位时：', 工位人.map((p) => `${p.名}(${p.格})`).join('  '));
+断言(
+  !!鹿在工位 && 鹿在工位.格[1] <= 9,
+  `小鹿在**开放办公区**（工位那一带 y≤9），实际 ${鹿在工位 ? 鹿在工位.格 : '不在场'}`,
+);
+断言(
+  (鹿在工位?.动画 ?? '').startsWith('坐_'),
+  `工位上小鹿用**背面**坐姿，实际 ${鹿在工位?.动画}`,
+);
+await 页.evaluate(() => {
+  const st = window.__lksStory.getState();
+  if (st.续播) st.地图交互(st.续播.去哪);
+});
+await 等(350);
+
+const 第三 = await 走一趟();
+console.log(`  第三趟：去哪=${第三?.待去房间?.去哪 ?? '（段末）'}`);
+断言(第三?.待去房间?.去哪 === '茶水间', `第三趟才去茶水间（实际 ${第三?.待去房间?.去哪}）`);
+断言(
+  !(第三?.待暂停),
+  '茶水间**只触发一次**（第二段不会又指一次茶水间）',
+);
+
+const 到了2 = 第三;
 
 console.log('\n=== ③ 点「去茶水间」→ 人应该**先传送过去** ===\n');
 await 页.evaluate(() => window.__lksStory.getState().去房间());
