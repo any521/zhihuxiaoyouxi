@@ -23,6 +23,7 @@ import Phaser from 'phaser';
 import { OfficeMapScene } from '../game/map/OfficeMapScene';
 import { 交互点表 } from '../game/map/level';
 import { 人物卡, 设置弹层 } from './Panels';
+import { 小地图 } from './小地图';
 import { useStory } from '../state/story';
 import { 播放 } from '../story/audio';
 
@@ -215,6 +216,9 @@ export function MapScreen(): ReactElement {
           } as React.CSSProperties
         }
       />
+
+      {/* 右上：小地图（点击放大） */}
+      <小地图 />
 
       {/* 左上：天数（小徽章） */}
       <div className="map-day">{段标签}</div>

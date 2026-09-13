@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -27,6 +27,7 @@ import {
   type NPC位,
   type 交互点,
 } from './level';
+import { 报位置 } from './位置总线';
 
 /** 地图像素尺寸 */
 const 图宽 = 地图宽 * 格;
@@ -368,6 +369,7 @@ export class OfficeMapScene extends Phaser.Scene {
     }
 
     const 影子 = { x: this.主角.x, y: this.主角.y - 1 };
+    报位置(this.主角.x, this.主角.y);
     this.脚下影.setPosition(影子.x, 影子.y);
     this.脚下影.setDepth(this.主角.y - 1);
     this.主角.setDepth(this.主角.y);

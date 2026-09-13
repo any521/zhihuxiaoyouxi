@@ -234,3 +234,133 @@
     justify-content: center;
   }
 }
+
+/* ═══════════ 小地图 ═══════════ */
+
+/* 右上角缩略图：一格 3px，45×30 格 = 135×90 */
+.map-mini {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  padding: 0;
+  line-height: 0;
+  background: rgba(20, 22, 28, 0.82);
+  border: 2px solid rgba(247, 239, 221, 0.4);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, border-color 0.14s;
+}
+
+.map-mini:hover {
+  border-color: #a8d98a;
+  transform: scale(1.04);
+}
+
+.map-mini:active {
+  transform: translateY(2px);
+}
+
+.map-mini:focus-visible {
+  outline: 3px solid #a8d98a;
+  outline-offset: 2px;
+}
+
+.map-mini canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+/* 放大版：整屏遮罩 + 中间大图（一格 12px = 540×360） */
+.map-mini-full {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 22, 28, 0.72);
+  animation: map-pop 0.18s ease-out both;
+}
+
+.map-mini-full-box {
+  display: flex;
+  flex-direction: column;
+  background: #1b2028;
+  border: 3px solid #a8d98a;
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.4);
+  max-width: 100%;
+  max-height: 92vh;
+  overflow: auto;
+}
+
+.map-mini-full-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(47, 93, 58, 0.92);
+  border-bottom: 2px solid rgba(168, 217, 138, 0.4);
+}
+
+.map-mini-full-head h2 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: normal;
+  color: #f7efdd;
+}
+
+.map-mini-full-close {
+  margin-left: auto;
+  padding: 6px 16px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #f7efdd;
+  background: transparent;
+  border: 2px solid rgba(247, 239, 221, 0.5);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background-color 0.14s;
+}
+
+.map-mini-full-close:hover {
+  background: rgba(247, 239, 221, 0.2);
+}
+
+.map-mini-full-close:active {
+  transform: translateY(2px);
+}
+
+.map-mini-full-box canvas {
+  display: block;
+  image-rendering: pixelated;
+  margin: 10px;
+}
+
+.map-mini-legend {
+  display: flex;
+  gap: 18px;
+  padding: 0 12px 12px;
+  font-size: 12px;
+  color: #cbbfa6;
+}
+
+.map-mini-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-mini-legend i {
+  width: 10px;
+  height: 10px;
+  display: block;
+}
+
+@media (max-width: 720px) {
+  .map-mini {
+    right: 10px;
+    top: 10px;
+  }
+
+  .map-mini-full-box canvas {
+    margin: 6px;
+  }
+}
