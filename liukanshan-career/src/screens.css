@@ -229,15 +229,67 @@
   filter: invert(1) brightness(2);
 }
 
-/* ── 会话列表 ── */
+/* ── 会话列表（宽度由拖拽决定，不用固定值）── */
 
 .wc-list {
   flex: none;
-  width: 244px;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: var(--cream-2);
-  border-right: 2px solid var(--line);
+}
+
+/* ── 可拖拽分栏 ──
+   平时是一条 6px 的窄缝，鼠标移上去/拖动时变绿并加宽热区。
+   双击复位，左右方向键也能调（Shift 加速）。 */
+.wc-split {
+  flex: none;
+  position: relative;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+  outline: none;
+}
+
+/* 视觉上的一条细线 */
+.wc-split::before {
+  content: '';
+  position: absolute;
+  inset: 0 2px;
+  background: var(--line);
+  transition: background 0.12s;
+}
+
+/* 拖动时把手 */
+.wc-split-grip {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 34px;
+  transform: translate(-50%, -50%);
+  background: transparent;
+  transition: background 0.12s;
+}
+
+.wc-split:hover::before,
+.wc-split:focus-visible::before {
+  background: var(--green-3);
+}
+
+.wc-split:hover .wc-split-grip,
+.wc-split:focus-visible .wc-split-grip {
+  background: var(--green);
+}
+
+.wc-split.dragging::before {
+  background: var(--green);
+}
+
+.wc-split.dragging .wc-split-grip {
+  background: var(--green-2);
+  height: 60px;
 }
 
 .wc-list-head {
@@ -271,6 +323,7 @@
 /* 指标条：白底绿框，像三枚小徽章 */
 .wc-metrics {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   padding: 10px 12px;
   border-bottom: 2px solid var(--line);
@@ -466,9 +519,10 @@
 }
 
 .wc-body-inner {
-  max-width: 760px;
+  /* 不设硬上限：窗口拉宽时内容跟着舒展开，只留一个舒适上限 */
+  max-width: 980px;
   margin: 0 auto;
-  padding: 22px 22px 28px;
+  padding: 22px clamp(14px, 2vw, 34px) 28px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -488,7 +542,7 @@
 }
 
 .wc-msg-body {
-  max-width: min(74%, 540px);
+  max-width: min(78%, 620px);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -796,12 +850,12 @@
 /* ═══════════════════ 手机（窄屏）═══════════════════ */
 
 @media (max-width: 720px) {
-  /* 手机微信只有"列表"和"聊天"两屏，没有左侧功能栏 */
+  /* 手机微信只有"列表"和"聊天"两屏：没有左侧功能栏，也没有可拖拽分栏 */
   .wc-rail { display: none; }
+  .wc-split { display: none; }
 
   .wc-list {
-    width: 100%;
-    border-right: none;
+    width: 100% !important;
   }
 
   .wc-chat { width: 100%; }

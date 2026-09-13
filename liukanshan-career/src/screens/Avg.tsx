@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -9,12 +9,101 @@
  *
  * 素材：功能栏、列表项两态、聊天区底、气泡九宫格、头像框、微信图标、贴纸。
  */
-import { useEffect, useLayoutEffect, useRef, type ReactElement } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
 import { 剧情间隔, useStory, type 会话, type 渲染项 } from '../state/story';
 
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
+
+/* ───────── 可拖拽的分栏 ───────── */
+
+const 列表宽范围 = { 最小: 176, 最大: 520, 默认: 244 };
+const 宽度键 = 'lks-wechat-list-width';
+
+/** 读上次拖的宽度（记在 localStorage，刷新后还在） */
+function 读列表宽(): number {
+  const 存 = Number(window.localStorage.getItem(宽度键));
+  if (Number.isFinite(存) && 存 >= 列表宽范围.最小 && 存 <= 列表宽范围.最大) return 存;
+  return 列表宽范围.默认;
+}
+
+/**
+ * 拖拽调宽。用 pointer 事件（同时支持鼠标与触摸），
+ * 拖的时候禁用文本选中、把光标锁定成 col-resize。
+ */
+function use拖拽宽度() {
+  const [宽, set宽] = useState(读列表宽);
+  const [拖拽中, set拖拽中] = useState(false);
+  /** 上一次按下的时刻，用来自己判定"双击" */
+  const 上次按下 = useRef(0);
+
+  // 宽度一变就落盘
+  useEffect(() => {
+    window.localStorage.setItem(宽度键, String(宽));
+  }, [宽]);
+
+  const 开始拖 = useCallback(
+    (e: React.PointerEvent) => {
+      e.preventDefault();
+
+      // ⚠️ 不能用 onDoubleClick：pointerdown 里 preventDefault() 会把后续的
+      // click/dblclick 一起吃掉，双击事件根本不会触发。所以自己判。
+      const 现在 = Date.now();
+      const 是双击 = 现在 - 上次按下.current < 320;
+      上次按下.current = 现在;
+      if (是双击) {
+        set宽(列表宽范围.默认);
+        return;
+      }
+
+      const 起x = e.clientX;
+      const 起宽 = 宽;
+      set拖拽中(true);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+
+      const 移动 = (ev: PointerEvent): void => {
+        const 新 = 起宽 + (ev.clientX - 起x);
+        set宽(Math.min(列表宽范围.最大, Math.max(列表宽范围.最小, 新)));
+      };
+      const 结束 = (): void => {
+        set拖拽中(false);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        window.removeEventListener('pointermove', 移动);
+        window.removeEventListener('pointerup', 结束);
+        window.removeEventListener('pointercancel', 结束);
+      };
+      window.addEventListener('pointermove', 移动);
+      window.addEventListener('pointerup', 结束);
+      window.addEventListener('pointercancel', 结束);
+    },
+    [宽],
+  );
+
+  /** 双击复位到默认宽度 */
+  const 复位 = useCallback(() => set宽(列表宽范围.默认), []);
+
+  /** 键盘调宽用的设置器（做一次夹紧） */
+  const 设宽 = useCallback((n: number) => {
+    set宽(Math.min(列表宽范围.最大, Math.max(列表宽范围.最小, n)));
+  }, []);
+
+  return { 宽, 拖拽中, 开始拖, 复位, 设宽 };
+}
+
+/** 键盘也能调（左右方向键），方便不用鼠标时 */
+function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number) => void): void {
+  const 步 = e.shiftKey ? 40 : 12;
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    设宽(Math.max(列表宽范围.最小, 现宽 - 步));
+  } else if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    设宽(Math.min(列表宽范围.最大, 现宽 + 步));
+  }
+}
 
 /** 群聊头像用哪几个人的脸拼 */
 const 群成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
@@ -190,6 +279,7 @@ export function Avg(): ReactElement {
   const 重置 = useStory((s) => s.重置);
 
   const 消息区 = useRef<HTMLDivElement>(null);
+  const { 宽: 列表宽, 拖拽中, 开始拖, 设宽 } = use拖拽宽度();
   const 当前 = 会话们.find((c) => c.id === 查看会话) ?? 会话们[0];
   const 是活跃 = 查看会话 === 活跃会话;
   const 活跃名 = 会话们.find((c) => c.id === 活跃会话)?.名字 ?? '';
@@ -229,7 +319,7 @@ export function Avg(): ReactElement {
       </aside>
 
       {/* ── 会话列表 ── */}
-      <section className="wc-list">
+      <section className="wc-list" style={{ width: 列表宽 }}>
         <header className="wc-list-head">
           <span className="wc-list-title">微信</span>
           <span className="wc-list-icons">
@@ -254,6 +344,20 @@ export function Avg(): ReactElement {
           重来
         </button>
       </section>
+
+      {/* ── 可拖拽分栏 ── */}
+      <div
+        className={`wc-split${拖拽中 ? ' dragging' : ''}`}
+        onPointerDown={开始拖}
+        onKeyDown={(e) => 键盘调宽(e, 列表宽, 设宽)}
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="拖动调整会话列表宽度"
+        tabIndex={0}
+        title="拖动调整宽度 · 双击复位"
+      >
+        <span className="wc-split-grip" />
+      </div>
 
       {/* ── 聊天窗口 ── */}
       <section className="wc-chat">
