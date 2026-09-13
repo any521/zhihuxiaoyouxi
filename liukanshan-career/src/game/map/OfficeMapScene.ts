@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -80,6 +80,8 @@ export class OfficeMapScene extends Phaser.Scene {
   private 门们: Array<{ x: number; y: number }> = [];
   private 当前附近门: { x: number; y: number; 开: boolean } | null = null;
   /** 通行表缓存（门一开关就置空重算）*/
+  /** 每扇门的物理挡板：关着用 关挡，开着用 开挡 */
+  private 门体 = new Map<string, { 关挡: Phaser.GameObjects.Rectangle; 开挡: Phaser.GameObjects.Rectangle }>();
   private 通行表: Uint8Array | null = null;
   /** 路径缓存：主角换格或目标变了才重算 */
   private 路缓存: Array<{ x: number; y: number }> | null = null;
@@ -136,6 +138,8 @@ export class OfficeMapScene extends Phaser.Scene {
     const py = y + 偏[1];
     const 另新 = 门配对[网格[py]?.[px]];
     if (另新 !== undefined) this.改门格(px, py, 另新);
+    // 门的阻挡改由**物理挡板**负责（不再是瓦片），所以要跟着刷新
+    this.刷新门体(x, y);
   }
 
   /**
@@ -151,8 +155,19 @@ export class OfficeMapScene extends Phaser.Scene {
   private 建门框碰撞(): void {
     /** 门框宽度（每侧）—— 2 格 64px 减去两侧 6.5px ≈ 51px */
     const 框宽 = 6.5;
+    /** 开着的门扇有多宽（和门瓦片里画的一致）*/
+    const 扇宽 = 14;
     /** 已经加过框的门（一扇门两格，别加两次）*/
     const 加过 = new Set<string>();
+
+    /** 建一个静态碰撞矩形，返回它，方便之后开关 */
+    const 建块 = (cx: number, cy: number, w: number, h: number): Phaser.GameObjects.Rectangle => {
+      const r = this.add.rectangle(cx, cy, w, h);
+      r.setVisible(false); // 只是碰撞体，画面上看不见
+      this.physics.add.existing(r, true);
+      this.挡路.add(r);
+      return r;
+    };
 
     for (const d of this.门们) {
       const 号 = 网格[d.y]?.[d.x];
@@ -166,28 +181,44 @@ export class OfficeMapScene extends Phaser.Scene {
       加过.add(键);
 
       const 是横门 = 偏[0] !== 0;
-      // 门占据的像素范围
-      const 起px = 是横门 ? 头x * 格 : 头x * 格;
-      const 起py = 是横门 ? 头y * 格 : 头y * 格;
+      const x0 = 头x * 格;
+      const y0 = 头y * 格;
 
       if (是横门) {
-        // 横门：左右各一块门框，高占满这一行
-        const 左 = this.add.rectangle(起px + 框宽 / 2, 起py + 格 / 2, 框宽, 格);
-        const 右 = this.add.rectangle(起px + 格 * 2 - 框宽 / 2, 起py + 格 / 2, 框宽, 格);
-        for (const r of [左, 右]) {
-          this.physics.add.existing(r, true);
-          this.挡路.add(r);
-        }
+        // 门框：左右各一块
+        建块(x0 + 框宽 / 2, y0 + 格 / 2, 框宽, 格);
+        建块(x0 + 格 * 2 - 框宽 / 2, y0 + 格 / 2, 框宽, 格);
+        // **关着时**的挡板：填满门洞
+        const 关挡 = 建块(x0 + 格, y0 + 格 / 2, 格 * 2 - 框宽 * 2, 格);
+        // **开着时**的挡板：门扇立着占的那一条
+        const 开挡 = 建块(x0 + 7 + 扇宽 / 2, y0 + 格 / 2, 扇宽, 格);
+        this.门体.set(键, { 关挡, 开挡 });
       } else {
-        // 竖门：上下各一块
-        const 上 = this.add.rectangle(起px + 格 / 2, 起py + 框宽 / 2, 格, 框宽);
-        const 下 = this.add.rectangle(起px + 格 / 2, 起py + 格 * 2 - 框宽 / 2, 格, 框宽);
-        for (const r of [上, 下]) {
-          this.physics.add.existing(r, true);
-          this.挡路.add(r);
-        }
+        建块(x0 + 格 / 2, y0 + 框宽 / 2, 格, 框宽);
+        建块(x0 + 格 / 2, y0 + 格 * 2 - 框宽 / 2, 格, 框宽);
+        const 关挡 = 建块(x0 + 格 / 2, y0 + 格, 格, 格 * 2 - 框宽 * 2);
+        const 开挡 = 建块(x0 + 格 / 2, y0 + 7 + 扇宽 / 2, 格, 扇宽);
+        this.门体.set(键, { 关挡, 开挡 });
       }
     }
+    // 按当前状态把挡板启停一次
+    for (const d of this.门们) this.刷新门体(d.x, d.y);
+  }
+
+  /** 按某扇门当前的开/关，启停它的两块挡板 */
+  private 刷新门体(x: number, y: number): void {
+    const 号 = 网格[y]?.[x];
+    const 偏 = 门另一半[号];
+    if (!偏) return;
+    const 头x = 偏[0] > 0 ? x : 偏[0] < 0 ? x + 偏[0] : x;
+    const 头y = 偏[1] > 0 ? y : 偏[1] < 0 ? y + 偏[1] : y;
+    const 体 = this.门体.get(`${头x},${头y}`);
+    if (!体) return;
+    const 现在开 = 通行瓦片.includes(号);
+    const a = 体.关挡.body as Phaser.Physics.Arcade.StaticBody | null;
+    const b = 体.开挡.body as Phaser.Physics.Arcade.StaticBody | null;
+    if (a) a.enable = !现在开;
+    if (b) b.enable = 现在开;
   }
 
   /** 开局扫一遍网格，把所有门的位置记下来 */
