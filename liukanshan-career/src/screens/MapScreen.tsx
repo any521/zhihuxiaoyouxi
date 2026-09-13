@@ -59,6 +59,8 @@ export function MapScreen(): ReactElement {
   const 设附近物 = useStory((s) => s.设附近物);
   const 附近人 = useStory((s) => s.附近人);
   const 设附近人 = useStory((s) => s.设附近人);
+  /** 「去房间」时底部提示要改的话（例如"小鹿在工位上等你"） */
+  const 续播提示 = useStory((s) => s.续播提示);
   const 目标id = useStory((s) => s.地图目标);
   const 设附近 = useStory((s) => s.设附近);
   const 地图交互 = useStory((s) => s.地图交互);
@@ -304,7 +306,10 @@ export function MapScreen(): ReactElement {
         <div className={`map-prompt${是主线 ? ' main' : ''}`}>
           <b>{附近点.名}</b>
           <span className="map-prompt-key">空格</span>
-          <span className="map-prompt-act">{附近点.提示}</span>
+          {/* 「去房间」时优先显示剧本给的提示（"小鹿在工位上等你"），比交互点自己的话更贴当下 */}
+          <span className="map-prompt-act">
+            {是主线 && 续播提示 ? 续播提示 : 附近点.提示}
+          </span>
           {是主线 ? <span className="map-prompt-star">主线</span> : null}
         </div>
       ) : null}
