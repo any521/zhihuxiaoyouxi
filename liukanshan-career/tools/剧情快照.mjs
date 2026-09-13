@@ -1,10 +1,8 @@
 /**
- * 开场 / AVG 截图。
+ * 开场 / 微信式 AVG 截图。
  *
- * 和 tools/快照.mjs 不同，这个针对新的剧情屏：
- *   · 开场动画：抓第 0 / 2 / 5 格
- *   · AVG：抓几条对话、群邀请、选项
- * PC（1440×900）与手机（390×844）各来一套。
+ * PC（1440×900）与手机（390×844）各来一套：
+ *   开场 3 格 → 林总私聊 → 群邀请 → 群聊 → 选项 → 选择结果 → 周岚私聊 → 知乎卡
  *
  * 用法：node tools/剧情快照.mjs
  */
@@ -31,17 +29,24 @@ const 浏览器 = await puppeteer.launch({
   args: ['--enable-unsafe-swiftshader', '--use-angle=swiftshader', '--no-sandbox', '--force-device-scale-factor=1'],
 });
 
-/** 等一会儿 */
 const 等 = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** 抓一张 */
 async function 抓(页, 名) {
-  const p = join(出目录, `${名}.png`);
-  await 页.screenshot({ path: p });
+  await 页.screenshot({ path: join(出目录, `${名}.png`) });
   console.log(`  ${名}.png`);
 }
 
-/** 跑一套（一个视口） */
+/** 连推数步直到满足条件或到上限 */
+async function 推到(页, 条件, 上限 = 120, 每步等 = 60) {
+  for (let i = 0; i < 上限; i += 1) {
+    const 好 = await 页.evaluate(条件);
+    if (好) return true;
+    await 页.evaluate(() => window.__lksStory.getState().推进一步());
+    await 等(每步等);
+  }
+  return false;
+}
+
 async function 一套(标签, 视口) {
   const 页 = await 浏览器.newPage();
   await 页.setViewport(视口);
@@ -49,85 +54,50 @@ async function 一套(标签, 视口) {
   await 页.goto(URL, { waitUntil: 'networkidle2' });
   await 等(700);
 
-  // ---- 开场动画：抓几格 ----
-  const 格数 = await 页.evaluate(() => (window.__lksStory ? window.__lksStory.getState().开场格 : -1));
-  await 抓(页, `${标签}-1-开场格${格数}`);
-
-  // 跳到第 2 格（"然后，电话响了"）
-  await 页.evaluate(() => window.__lksStory.setState({ 开场格: 2 }));
+  // ── 开场动画 ──
+  await 页.evaluate(() => window.__lksStory.setState({ 开场格: 1 }));
   await 等(1200);
-  await 抓(页, `${标签}-2-开场格2`);
-
-  // 跳到最后一格（标题卡）
+  await 抓(页, `${标签}-1-开场`);
   await 页.evaluate(() => window.__lksStory.setState({ 开场格: 5 }));
   await 等(1400);
-  await 抓(页, `${标签}-3-标题卡`);
+  await 抓(页, `${标签}-2-标题卡`);
 
-  // ---- 进 AVG，让它自己播 ----
+  // ── 进微信，播到群邀请 ──
   await 页.evaluate(() => window.__lksStory.getState().跳过开场());
   await 等(300);
-
-  // 播到群邀请停下来（引擎会在邀请处自动停）
-  for (let i = 0; i < 40; i += 1) {
-    const s = await 页.evaluate(() => {
-      const st = window.__lksStory.getState();
-      return { 邀请: !!st.待接受邀请, 位置: st.位置, 条目: st.条目.length };
-    });
-    if (s.邀请) break;
-    await 页.evaluate(() => window.__lksStory.getState().推进一步());
-    await 等(90);
-  }
+  await 推到(页, () => !!window.__lksStory.getState().待接受邀请);
   await 等(400);
-  await 抓(页, `${标签}-4-群邀请`);
+  await 抓(页, `${标签}-3-林总私聊与邀请`);
 
-  // 接受邀请，继续播到选项
+  // ── 接受邀请 → 群聊 ──
   await 页.evaluate(() => window.__lksStory.getState().接受邀请());
-  for (let i = 0; i < 60; i += 1) {
-    const s = await 页.evaluate(() => {
-      const st = window.__lksStory.getState();
-      return { 选择: !!st.待选择, 播完: st.播完 };
-    });
-    if (s.选择) break;
-    await 页.evaluate(() => window.__lksStory.getState().推进一步());
-    await 等(80);
-  }
+  await 推到(页, () => !!window.__lksStory.getState().待选择);
   await 等(400);
-  await 抓(页, `${标签}-5-群聊与选项`);
+  await 抓(页, `${标签}-4-群聊与选项`);
 
-  // 选 A，看结果与指标
+  // ── 选 A ──
   await 页.evaluate(() => window.__lksStory.getState().选择(0));
-  for (let i = 0; i < 12; i += 1) {
-    await 页.evaluate(() => window.__lksStory.getState().推进一步());
-    await 等(70);
-  }
-  await 等(400);
-  await 抓(页, `${标签}-6-选择结果`);
-
-  // 一路播到知乎卡
-  for (let i = 0; i < 80; i += 1) {
-    const s = await 页.evaluate(() => {
-      const st = window.__lksStory.getState();
-      return { 暂停: !!st.待暂停, 知乎卡: st.条目.filter((x) => x.种类 === '知乎卡').length };
-    });
-    if (s.暂停 || s.知乎卡 >= 1) break;
+  for (let i = 0; i < 10; i += 1) {
     await 页.evaluate(() => window.__lksStory.getState().推进一步());
     await 等(60);
   }
-  await 等(400);
-  await 抓(页, `${标签}-7-知乎卡`);
-
-  // 滚到最底看最终态
-  await 页.evaluate(() => {
-    const el = document.querySelector('.avg-scroll');
-    if (el) el.scrollTop = el.scrollHeight;
-  });
-  等(200);
   await 等(300);
-  await 抓(页, `${标签}-8-末态`);
+  await 抓(页, `${标签}-5-选择结果`);
 
-  const 错误 = await 页.evaluate(() => (window.__lksErrors ?? []).length);
+  // ── 播到周岚私聊 ──
+  await 推到(页, () => {
+    const st = window.__lksStory.getState();
+    return st.查看会话 === 'zhou' && st.待暂停;
+  });
+  await 等(400);
+  await 抓(页, `${标签}-6-周岚私聊`);
+
+  // ── 回看群聊（点会话列表）──
+  await 页.evaluate(() => window.__lksStory.getState().查看('group'));
+  await 等(400);
+  await 抓(页, `${标签}-7-回看群聊`);
+
   await 页.close();
-  return 错误;
 }
 
 console.log('=== 剧情屏快照 ===\n');

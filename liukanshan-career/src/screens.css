@@ -1,20 +1,23 @@
 /**
- * 开场动画与 AVG 剧情屏的样式。
+ * 开场动画 + 微信式 AVG 的样式。
  *
- * 两条原则（沿用美术圣经）：
- *   一、像素感来自 PNG + image-rendering: pixelated，整数倍缩放
- *   二、文字一律 DOM 直接画，不塞进像素图里
+ * 三条原则：
+ *   一、像素感来自 PNG（头像、图标、气泡、贴纸），文字一律 DOM
+ *   二、气泡九宫格必须带 `fill`，否则中间不填色 → 文字看不见
+ *   三、配色直接取 32 色板：功能栏 #1b2028 · 会话列表 #262a33 · 选中 #3a4658 · 红点 #e04f3f
  */
 
-/* ═══════════════════ 通用 ═══════════════════ */
-
-.screen {
-  position: fixed;
-  inset: 0;
-  overflow: hidden;
-  background: #0b0d12;
-  color: #e8eef8;
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+:root {
+  --wc-rail: #14161c;
+  --wc-list: #262a33;
+  --wc-list-2: #22263042;
+  --wc-on: #3a4658;
+  --wc-chat: #1b2028;
+  --wc-line: #ffffff14;
+  --wc-text: #e8eef8;
+  --wc-dim: #8d99ab;
+  --wc-red: #e04f3f;
+  --wc-blue: #4a8fd4;
 }
 
 /* ═══════════════════ 开场动画 ═══════════════════ */
@@ -75,9 +78,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   line-height: 1.25;
-  text-shadow:
-    0 3px 0 rgba(0, 0, 0, 0.55),
-    0 0 34px rgba(255, 190, 110, 0.28);
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 34px rgba(255, 190, 110, 0.28);
   animation: text-in 0.9s 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -116,7 +117,7 @@
   bottom: 20px;
   padding: 8px 16px;
   font-size: 14px;
-  color: #e8eef8;
+  color: var(--wc-text);
   background: rgba(12, 14, 20, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 999px;
@@ -143,140 +144,221 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ═══════════════════ AVG 剧情 ═══════════════════ */
+/* ═══════════════════ 微信式 AVG ═══════════════════ */
 
-.avg {
+.wechat {
   position: fixed;
   inset: 0;
   display: flex;
-  flex-direction: column;
   overflow: hidden;
-  background: #0b0d12;
+  background: var(--wc-chat);
+  color: var(--wc-text);
+  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
 }
 
-.avg-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  image-rendering: pixelated;
-  transform: scale(1.06);
-  filter: saturate(0.85);
-}
+/* ── 左侧功能栏 ── */
 
-.avg-veil {
-  position: absolute;
-  inset: 0;
-  background:
-    radial-gradient(120% 80% at 50% 30%, rgba(8, 10, 16, 0.35) 0%, rgba(8, 10, 16, 0.78) 65%, rgba(6, 8, 12, 0.94) 100%);
-}
-
-/* ── 顶栏 ── */
-
-.avg-head {
-  position: relative;
-  z-index: 2;
+.wc-rail {
+  flex: none;
+  width: 58px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   gap: 14px;
-  padding: 10px 18px;
-  background: linear-gradient(to bottom, rgba(10, 12, 18, 0.9), rgba(10, 12, 18, 0.45));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 14px 0 12px;
+  background: var(--wc-rail);
+  border-right: 1px solid var(--wc-line);
 }
 
-.avg-head-title {
-  font-size: 16px;
+.wc-me {
+  display: block;
+}
+
+.wc-rail-icons {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.wc-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  opacity: 0.55;
+}
+
+.wc-icon.on {
+  opacity: 1;
+  background: rgba(74, 143, 212, 0.16);
+}
+
+.wc-icon.bottom {
+  margin-top: auto;
+}
+
+.wc-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+/* ── 会话列表 ── */
+
+.wc-list {
+  flex: none;
+  width: 238px;
+  display: flex;
+  flex-direction: column;
+  background: var(--wc-list);
+  border-right: 1px solid var(--wc-line);
+}
+
+.wc-list-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--wc-line);
+}
+
+.wc-list-title {
+  font-size: 15px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
-.avg-head-sub {
-  font-size: 13px;
-  color: #97a3b8;
-}
-
-.avg-metrics {
+.wc-list-icons {
   margin-left: auto;
   display: flex;
   gap: 10px;
-  font-size: 13px;
+  opacity: 0.6;
+}
+
+.wc-list-icons img {
+  width: 16px;
+  height: 16px;
+  image-rendering: pixelated;
+}
+
+.wc-metrics {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--wc-line);
+}
+
+.wc-metrics span {
+  flex: 1;
+  text-align: center;
+  font-size: 11.5px;
+  padding: 4px 2px;
+  border-radius: 5px;
   color: #cfe0ff;
+  background: rgba(74, 143, 212, 0.14);
+  border: 1px solid rgba(74, 143, 212, 0.28);
 }
 
-.avg-metrics span {
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(74, 143, 212, 0.16);
-  border: 1px solid rgba(74, 143, 212, 0.35);
+.wc-rows {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
 }
 
-.avg-reset {
-  font-size: 12px;
-  color: #93a0b5;
+.wc-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
-  padding: 4px 12px;
+  border: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+}
+
+.wc-row:hover {
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.wc-row.on {
+  background: var(--wc-on);
+}
+
+.wc-row-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wc-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-row-preview {
+  font-size: 12px;
+  color: var(--wc-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wc-badge {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  color: #fff;
+  background: var(--wc-red);
+}
+
+.wc-reset {
+  margin: 8px 12px 12px;
+  padding: 7px;
+  font-size: 12px;
+  color: var(--wc-dim);
+  background: transparent;
+  border: 1px solid var(--wc-line);
+  border-radius: 6px;
   cursor: pointer;
 }
 
-.avg-reset:hover {
-  color: #e8eef8;
-  border-color: rgba(255, 255, 255, 0.4);
+.wc-reset:hover {
+  color: var(--wc-text);
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
-/* ── 对话滚动区 ── */
+/* ── 头像 ── */
 
-.avg-scroll {
-  position: relative;
-  z-index: 2;
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-}
-
-.avg-column {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 20px 16px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-/* ── 一行对话：头像 + 气泡 ── */
-
-.avg-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  animation: bubble-in 0.32s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-
-.avg-row.right {
-  flex-direction: row;
-  justify-content: flex-end;
-}
-
-.avg-face {
+.wc-face {
   flex: none;
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  display: block;
+  border-radius: 6px;
   overflow: hidden;
-  background: rgba(20, 24, 34, 0.85);
+  background: #10141c;
   border: 2px solid #241a12;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
 }
 
-.avg-face.round {
-  border-radius: 50%;
-}
-
-.avg-face img {
+.wc-face img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -284,70 +366,160 @@
   display: block;
 }
 
-.avg-bubble-wrap {
-  max-width: min(78%, 460px);
+.wc-face.group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #10141c;
+}
+
+.wc-face.group img {
+  background: #2b3444;
+}
+
+/* ── 聊天窗口 ── */
+
+.wc-chat {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  /* 聊天区底：深色平整底，字压在上面不抢戏 */
+  background-color: var(--wc-chat);
+}
+
+.wc-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+  height: 48px;
+  background: #262a33;
+  border-bottom: 1px solid var(--wc-line);
+}
+
+.wc-back {
+  display: none;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.wc-back img {
+  width: 18px;
+  height: 18px;
+  image-rendering: pixelated;
+  filter: invert(1) opacity(0.8);
+}
+
+.wc-head-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.wc-head-count {
+  font-size: 12px;
+  color: var(--wc-dim);
+}
+
+.wc-head-hint {
+  margin-left: auto;
+  font-size: 12px;
+  color: #ffcb6b;
+}
+
+.wc-body {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  cursor: pointer;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+}
+
+.wc-body-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 20px 20px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── 一条消息 ── */
+
+.wc-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  animation: bubble-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.wc-msg.right {
+  justify-content: flex-end;
+}
+
+.wc-msg-body {
+  max-width: min(74%, 520px);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.avg-row.right .avg-bubble-wrap {
+.wc-msg.right .wc-msg-body {
   align-items: flex-end;
 }
 
-.avg-name {
+.wc-msg-name {
   font-size: 12px;
-  letter-spacing: 0.06em;
   color: #9fb0c8;
   padding-left: 4px;
 }
 
-/* 气泡本体：九宫格。
- * 两个坑都踩过：
- *   一、slice 必须带 `fill`，否则中间不填色 → 深色文字压在深色背景上直接看不见
- *   二、**底部要单独切**：我们的气泡素材带一个尾巴（在底部左右角），
- *       如果底部只切 6px 会把尾巴拦腰截断；切成 12px 才包住整条尾巴。
- *       border-width 用 2 倍（12 / 24），保证整数倍放大不糊。
- */
-.avg-bubble {
+/* 气泡九宫格。两个坑：① 必须带 fill，否则中间不填色、深色文字看不见
+   ② 底部要单独切 12px，否则把尾巴拦腰截断 */
+.wc-bubble {
   border-style: solid;
   border-width: 12px 12px 22px 12px;
   border-image-slice: 6 6 12 6 fill;
   border-image-repeat: stretch;
   image-rendering: pixelated;
   font-size: 15px;
-  line-height: 1.62;
+  line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
   color: #241a12;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.35));
+  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.3));
 }
 
-/* 贴纸气泡：不套尾巴，直接一张图 */
-.avg-bubble.sticker {
+.wc-bubble.sticker {
   border: 0;
   border-image: none;
   background: transparent;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.5));
   padding: 0;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
 }
 
-.avg-sticker {
-  width: 72px;
-  height: 96px;
+.wc-sticker {
+  width: 68px;
+  height: 90px;
   image-rendering: pixelated;
   display: block;
 }
 
-/* 「正在输入」三点 */
-.avg-bubble.typing {
+.wc-bubble.typing {
   display: flex;
   gap: 5px;
   align-items: center;
-  min-height: 24px;
+  min-height: 22px;
 }
 
-.avg-bubble.typing .d {
+.wc-bubble.typing .d {
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -355,8 +527,8 @@
   animation: typing 1s infinite ease-in-out;
 }
 
-.avg-bubble.typing .d:nth-child(2) { animation-delay: 0.16s; }
-.avg-bubble.typing .d:nth-child(3) { animation-delay: 0.32s; }
+.wc-bubble.typing .d:nth-child(2) { animation-delay: 0.16s; }
+.wc-bubble.typing .d:nth-child(3) { animation-delay: 0.32s; }
 
 @keyframes typing {
   0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
@@ -368,20 +540,20 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── 系统行 / 旁白 ── */
+/* ── 系统行 / 旁白 / 指标 ── */
 
-.avg-system {
+.wc-system {
   align-self: center;
   font-size: 12.5px;
-  color: #93a0b5;
-  background: rgba(18, 22, 30, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--wc-dim);
+  background: rgba(18, 22, 30, 0.85);
+  border: 1px solid var(--wc-line);
   border-radius: 999px;
   padding: 5px 16px;
   animation: bubble-in 0.3s both;
 }
 
-.avg-narration {
+.wc-narration {
   align-self: center;
   max-width: 82%;
   text-align: center;
@@ -390,14 +562,12 @@
   color: #d8cbb4;
   letter-spacing: 0.04em;
   padding: 10px 18px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--wc-line);
+  border-bottom: 1px solid var(--wc-line);
   animation: bubble-in 0.34s both;
 }
 
-/* ── 指标变动 ── */
-
-.avg-metric {
+.wc-metric {
   align-self: center;
   font-size: 13.5px;
   font-weight: 700;
@@ -409,20 +579,20 @@
 
 /* ── 群邀请卡 ── */
 
-.avg-invite {
+.wc-invite {
   align-self: center;
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(100%, 380px);
+  width: min(100%, 400px);
   padding: 12px 14px;
-  background: rgba(22, 26, 36, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(30, 35, 46, 0.95);
+  border: 1px solid var(--wc-line);
   border-radius: 10px;
   animation: bubble-in 0.34s both;
 }
 
-.avg-invite-icon {
+.wc-invite-icon {
   flex: none;
   width: 40px;
   height: 40px;
@@ -435,22 +605,20 @@
   background: linear-gradient(140deg, #ffcb6b, #ff9f4a);
 }
 
-.avg-invite-body {
-  min-width: 0;
-}
+.wc-invite-body { min-width: 0; }
 
-.avg-invite-title {
+.wc-invite-title {
   font-size: 14.5px;
   font-weight: 700;
 }
 
-.avg-invite-sub {
+.wc-invite-sub {
   font-size: 12.5px;
-  color: #98a4b8;
+  color: var(--wc-dim);
   margin-top: 2px;
 }
 
-.avg-invite-done {
+.wc-invite-done {
   margin-left: auto;
   font-size: 12px;
   color: #6fcf8f;
@@ -458,10 +626,10 @@
 
 /* ── 知乎卡 ── */
 
-.avg-zhihu {
+.wc-zhihu {
   align-self: center;
-  width: min(100%, 460px);
-  background: rgba(18, 22, 32, 0.94);
+  width: min(100%, 500px);
+  background: rgba(24, 29, 40, 0.96);
   border: 1px solid rgba(74, 143, 212, 0.45);
   border-radius: 12px;
   overflow: hidden;
@@ -469,51 +637,49 @@
   animation: bubble-in 0.4s both;
 }
 
-.avg-zhihu.empty {
-  border-color: rgba(255, 255, 255, 0.16);
+.wc-zhihu.empty {
+  border-color: var(--wc-line);
 }
 
-.avg-zhihu-head {
+.wc-zhihu-head {
   padding: 9px 14px;
   font-size: 12.5px;
   letter-spacing: 0.06em;
   color: #cfe0ff;
   background: linear-gradient(90deg, rgba(74, 143, 212, 0.28), rgba(74, 143, 212, 0.06));
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--wc-line);
 }
 
-.avg-zhihu-body {
-  padding: 12px 14px 14px;
-}
+.wc-zhihu-body { padding: 12px 14px 14px; }
 
-.avg-zhihu-body.placeholder {
+.wc-zhihu-body.placeholder {
   font-size: 13px;
   color: #8693a8;
   font-style: italic;
 }
 
-.avg-zhihu-title {
+.wc-zhihu-title {
   font-size: 15px;
   font-weight: 700;
   line-height: 1.5;
   margin-bottom: 6px;
 }
 
-.avg-zhihu-meta {
+.wc-zhihu-meta {
   display: flex;
   gap: 12px;
   font-size: 12.5px;
-  color: #93a0b5;
+  color: var(--wc-dim);
   margin-bottom: 8px;
 }
 
-.avg-zhihu-text {
+.wc-zhihu-text {
   font-size: 13.5px;
   line-height: 1.7;
   color: #cbd6e6;
 }
 
-.avg-zhihu-link {
+.wc-zhihu-link {
   display: inline-block;
   margin-top: 10px;
   font-size: 13px;
@@ -521,63 +687,61 @@
   text-decoration: none;
 }
 
-.avg-zhihu-link:hover {
-  text-decoration: underline;
-}
+.wc-zhihu-link:hover { text-decoration: underline; }
 
-/* ── 底栏：选项与按钮 ── */
+/* ── 底栏（输入区位置）── */
 
-.avg-foot {
-  position: relative;
-  z-index: 3;
-  padding: 12px 16px 18px;
-  background: linear-gradient(to top, rgba(8, 10, 16, 0.96), rgba(8, 10, 16, 0.6));
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+.wc-foot {
+  flex: none;
+  padding: 12px 16px 16px;
+  background: #262a33;
+  border-top: 1px solid var(--wc-line);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.avg-choices {
-  width: min(100%, 640px);
+.wc-choices {
+  width: min(100%, 660px);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 7px;
   animation: bubble-in 0.34s both;
 }
 
-.avg-choices-hint {
+.wc-choices-hint {
   font-size: 12.5px;
-  color: #93a0b5;
+  color: var(--wc-dim);
   text-align: center;
   margin-bottom: 2px;
 }
 
-.avg-choice {
+/* 选项做成"要发出去的消息"：左边一个 ABC 键位，右边是内容 */
+.wc-choice {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 12px 16px;
+  padding: 11px 16px;
   text-align: left;
   font-size: 15px;
-  color: #e8eef8;
-  background: rgba(26, 31, 43, 0.92);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-left: 4px solid #4a8fd4;
+  color: var(--wc-text);
+  background-color: #2f3543;
+  border: 1px solid var(--wc-line);
+  border-left: 4px solid var(--wc-blue);
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.12s, background 0.15s, border-color 0.15s;
 }
 
-.avg-choice:hover {
-  background: rgba(44, 95, 168, 0.5);
+.wc-choice:hover {
+  background-color: rgba(74, 143, 212, 0.35);
   border-color: rgba(140, 195, 238, 0.5);
   transform: translateX(3px);
 }
 
-.avg-choice-key {
+.wc-choice-key {
   flex: none;
   width: 24px;
   height: 24px;
@@ -590,8 +754,10 @@
   border-radius: 6px;
 }
 
-.avg-btn {
-  padding: 12px 34px;
+.wc-choice-label { flex: 1; }
+
+.wc-btn {
+  padding: 11px 34px;
   font-size: 15.5px;
   font-weight: 700;
   letter-spacing: 0.06em;
@@ -604,64 +770,57 @@
   animation: bubble-in 0.3s both;
 }
 
-.avg-btn:active {
+.wc-btn:active {
   transform: translateY(2px);
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
-.avg-tip {
+.wc-hint {
   font-size: 12.5px;
   color: #7b8798;
   letter-spacing: 0.06em;
 }
 
-.avg-tip.done {
-  color: #ffcb6b;
-}
+.wc-hint.done { color: #ffcb6b; }
 
-/* ═══════════════════ 窄屏（手机）═══════════════════ */
+/* ═══════════════════ 手机（窄屏）═══════════════════ */
 
-@media (max-width: 640px) {
-  .avg-head {
-    padding: 8px 12px;
-    gap: 8px;
-    flex-wrap: wrap;
+@media (max-width: 720px) {
+  /* 手机上微信只有"列表"和"聊天"两屏，没有左侧功能栏 */
+  .wc-rail { display: none; }
+
+  .wc-list {
+    width: 100%;
+    border-right: none;
   }
 
-  .avg-head-title { font-size: 14.5px; }
-  .avg-head-sub { font-size: 12px; }
+  .wc-chat { width: 100%; }
 
-  .avg-metrics {
-    gap: 6px;
-    font-size: 11.5px;
+  .wechat.show-list .wc-chat { display: none; }
+  .wechat.show-chat .wc-list { display: none; }
+
+  .wc-back { display: grid; }
+
+  .wc-body-inner {
+    padding: 14px 12px 20px;
+    gap: 14px;
   }
 
-  .avg-metrics span { padding: 2px 8px; }
+  .wc-msg-body { max-width: 82%; }
 
-  .avg-column {
-    padding: 14px 10px 20px;
-    gap: 12px;
-  }
-
-  .avg-bubble-wrap { max-width: 84%; }
-
-  .avg-bubble {
-    border-width: 10px;
+  .wc-bubble {
+    border-width: 10px 10px 20px 10px;
     font-size: 14.5px;
   }
 
-  .avg-face {
-    width: 40px;
-    height: 40px;
-  }
+  .wc-face { border-radius: 5px; }
 
-  .avg-choice {
+  .wc-choice {
     font-size: 14px;
-    padding: 11px 13px;
+    padding: 10px 13px;
   }
 
-  .avg-btn {
-    width: 100%;
-    padding: 13px 20px;
-  }
+  .wc-btn { width: 100%; }
+
+  .wc-head-hint { font-size: 11px; }
 }
