@@ -12,7 +12,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
-import { 剧情间隔, useStory, type 会话, type 渲染项 } from '../state/story';
+import { 剧情间隔, useStory, type 侧栏面板, type 会话, type 渲染项 } from '../state/story';
+import { 侧栏内容, 资料卡 } from './Panels';
 import { 播放, 有声, 设声音 } from '../story/audio';
 
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
@@ -289,7 +290,11 @@ export function Avg(): ReactElement {
   const 待暂停 = useStory((s) => s.待暂停);
   const 播完 = useStory((s) => s.播完);
   const 指标 = useStory((s) => s.指标);
+  const 速度 = useStory((s) => s.速度);
   const 段标签 = useStory((s) => s.段标签);
+  const 侧栏面板 = useStory((s) => s.侧栏面板);
+  const 切面板 = useStory((s) => s.切面板);
+  const 开关资料卡 = useStory((s) => s.开关资料卡);
   const 推进一步 = useStory((s) => s.推进一步);
   const 接受邀请 = useStory((s) => s.接受邀请);
   const 选择 = useStory((s) => s.选择);
@@ -310,9 +315,10 @@ export function Avg(): ReactElement {
     if (屏幕 !== 'avg') return;
     if (待选择 || 待接受邀请 || 待暂停 || 播完) return;
     const 本 = 队列[位置];
-    const t = window.setTimeout(() => 推进一步(), 本 ? 剧情间隔(本) : 900);
+    // 倍速只影响等待时长；点聊天区仍然能立刻推进
+    const t = window.setTimeout(() => 推进一步(), (本 ? 剧情间隔(本) : 900) / 速度);
     return () => window.clearTimeout(t);
-  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步]);
+  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
 
   // 新消息滚到底
   useLayoutEffect(() => {
@@ -322,23 +328,57 @@ export function Avg(): ReactElement {
 
   if (屏幕 !== 'avg') return <></>;
 
+  /** 功能栏上四个面板按钮：图标、面板名、无障碍标签 */
+  const 侧栏按钮: Array<[string, 侧栏面板, string]> = [
+    ['icon_chat', '会话', '会话'],
+    ['icon_contacts', '通讯录', '通讯录'],
+    ['icon_settings', '设置', '设置'],
+  ];
+
   return (
     <div className={`wechat${面板 === '列表' ? ' show-list' : ' show-chat'}`}>
       {/* ── 功能栏 ── */}
       <aside className="wc-rail">
-        <span className="wc-me">{头({ 谁: '刘看山', 尺寸: 36 })}</span>
+        {/* 点头像 = 打开自己的资料卡 */}
+        <button
+          className="wc-me"
+          {...按钮反馈(() => 开关资料卡())}
+          title="我的资料"
+          aria-label="打开我的资料卡"
+        >
+          {头({ 谁: '刘看山', 尺寸: 36 })}
+        </button>
+
         <nav className="wc-rail-icons">
-          {['icon_chat', 'icon_contacts', 'icon_settings'].map((n, i) => (
-            <span key={n} className={`wc-icon${i === 0 ? ' on' : ''}`}>
-              <img src={素材(`${n}.png`)} alt="" draggable={false} />
-            </span>
+          {侧栏按钮.map(([图标, 名, 标签]) => (
+            <button
+              key={名}
+              className={`wc-icon${侧栏面板 === 名 ? ' on' : ''}`}
+              {...按钮反馈(() => 切面板(名))}
+              title={标签}
+              aria-label={标签}
+              aria-current={侧栏面板 === 名}
+            >
+              <img src={素材(`${图标}.png`)} alt="" draggable={false} />
+            </button>
           ))}
         </nav>
-        <span className="wc-icon bottom">
+
+        <button
+          className={`wc-icon bottom${侧栏面板 === '更多' ? ' on' : ''}`}
+          {...按钮反馈(() => 切面板('更多'))}
+          title="更多"
+          aria-label="更多"
+        >
           <img src={素材('icon_more.png')} alt="" draggable={false} />
-        </span>
+        </button>
       </aside>
 
+      {/* ── 会话以外的面板：占满列表 + 聊天区 ── */}
+      {侧栏面板 !== '会话' ? (
+        <侧栏内容 面板={侧栏面板} />
+      ) : (
+        <>
       {/* ── 会话列表 ── */}
       <section className="wc-list" style={{ width: 列表宽 }}>
         <header className="wc-list-head">
@@ -456,9 +496,14 @@ export function Avg(): ReactElement {
             <div className="wc-hint">点聊天区加速 ▸</div>
           ) : null}
 
-          {播完 ? <div className="wc-hint done">本段结束 —— 关卡待接入</div> : null}
+          {播完 ? <div className="wc-hint done">全部剧情播完了 —— 后面的事件还在写</div> : null}
         </footer>
       </section>
+        </>
+      )}
+
+      {/* 个人资料卡（点功能栏里自己的头像打开） */}
+      <资料卡 />
     </div>
   );
 }
