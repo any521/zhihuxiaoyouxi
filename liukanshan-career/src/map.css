@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 地图模式样式。
  *
  * 布局原则：**四个角放常驻信息，底部中间放临时提示** —— 都不压地图中央，
@@ -47,6 +47,73 @@
   background: rgba(47, 93, 58, 0.92);
   border: 2px solid #a8d98a;
   pointer-events: none;
+}
+
+/* ───────── 左下：靠近家具时弹的「这东西是干嘛的」卡片 ─────────
+   为什么放左下：底部中间要留给「空格 交互」提示、右下是微信按钮，
+   卡片是**被动出现**的信息，塞在角上最不挡路。 */
+.map-prop {
+  position: absolute;
+  left: 14px;
+  bottom: 46px;
+  max-width: min(300px, 46vw);
+  padding: 10px 12px 11px;
+  color: #f7efdd;
+  background: rgba(20, 22, 28, 0.92);
+  border: 2px solid rgba(247, 239, 221, 0.3);
+  border-left: 6px solid #4a8fd4; /* 知乎蓝：一眼区分"这是说明，不是操作提示" */
+  animation: map-pop-left 0.16s ease-out both;
+  pointer-events: none;
+}
+
+.map-prop-head {
+  font-size: 24px;
+  color: #fff;
+  line-height: 1.15;
+}
+
+.map-prop-use {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d8cbb4;
+}
+
+.map-prop-more {
+  margin-top: 5px;
+  padding-top: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #a8a29a;
+  border-top: 1px dashed rgba(247, 239, 221, 0.18);
+}
+
+/* 人物卡：换成绿色边 + 有职位小标签，摆在**右边**（道具卡在左边，各占一角） */
+.map-prop.who {
+  left: auto;
+  right: 14px;
+  border-left: 2px solid rgba(247, 239, 221, 0.3);
+  border-right: 6px solid #7cc26b;
+  animation: map-pop-right 0.16s ease-out both;
+}
+
+@keyframes map-pop-right {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.map-prop-post {
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: #241a12;
+  background: #a8d98a;
+  vertical-align: middle;
+}
+
+@keyframes map-pop-left {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
 }
 
 /* 左下：操作说明（压暗，不抢眼） */

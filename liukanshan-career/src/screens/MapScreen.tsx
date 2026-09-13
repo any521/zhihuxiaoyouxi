@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 地图模式的 React 外壳。
  *
  * 分工：Phaser 只画像素（瓦片/道具/角色），**文字一律 DOM**。
@@ -24,6 +24,9 @@ import { OfficeMapScene } from '../game/map/OfficeMapScene';
 import { 交互点表 } from '../game/map/level';
 import { 人物卡, 设置弹层 } from './Panels';
 import { 小地图 } from './小地图';
+import { 取道具卡, 格子卡 } from '../story/道具卡';
+import { 取人物卡 } from '../story/人物卡';
+import type { 说话人 } from '../story/types';
 import { useStory } from '../state/story';
 import { 播放 } from '../story/audio';
 
@@ -52,6 +55,10 @@ export function MapScreen(): ReactElement {
   const 附近门ref = useRef<{ x: number; y: number; 开: boolean } | null>(null);
 
   const 附近 = useStory((s) => s.附近交互点);
+  const 附近物 = useStory((s) => s.附近物);
+  const 设附近物 = useStory((s) => s.设附近物);
+  const 附近人 = useStory((s) => s.附近人);
+  const 设附近人 = useStory((s) => s.设附近人);
   const 目标id = useStory((s) => s.地图目标);
   const 设附近 = useStory((s) => s.设附近);
   const 地图交互 = useStory((s) => s.地图交互);
@@ -121,6 +128,14 @@ export function MapScreen(): ReactElement {
           附近门变了: (门) => {
             附近门ref.current = 门;
             set附近门(门);
+          },
+          // 靠近家具/门 → 弹「这东西是干嘛的」卡片
+          附近道具变了: (物) => {
+            设附近物(物);
+          },
+          // 靠近同事 → 弹人物卡（他是谁 / 现在有没有戏）
+          附近人变了: (名) => {
+            设附近人(名);
           },
         });
         // 回到记忆中的位置（切去微信再回来不会重置到出生点）
@@ -212,6 +227,15 @@ export function MapScreen(): ReactElement {
   const 附近点 = 附近 ? 交互点表.find((p) => p.id === 附近) : null;
   const 是主线 = 目标id !== null && 附近点?.id === 目标id;
 
+  /** 旁边那件东西的说明卡（道具用图名查，门/玻璃用格子卡查） */
+  const 卡片 = 附近物
+    ? 附近物.种类 === '道具'
+      ? 取道具卡(附近物.键)
+      : (格子卡[附近物.键] ?? null)
+    : null;
+  /** 旁边那位同事的人物卡 */
+  const 人卡 = 附近人 ? 取人物卡(附近人 as 说话人) : null;
+
   /** 记位置再切去微信 */
   const 去微信 = (): void => {
     播放('按钮');
@@ -239,6 +263,30 @@ export function MapScreen(): ReactElement {
 
       {/* 左上：天数（小徽章） */}
       <div className="map-day">{段标签}</div>
+
+      {/* 左边：旁边那件东西是干嘛的（道具卡，一靠近就显示） */}
+      {卡片 ? (
+        <div className="map-prop">
+          <div className="map-prop-head">{卡片.名}</div>
+          <div className="map-prop-use">{卡片.用途}</div>
+          {卡片.补充 ? <div className="map-prop-more">{卡片.补充}</div> : null}
+        </div>
+      ) : null}
+
+      {/* 右边：旁边是哪位同事（人物卡）。和道具卡**各占一角** ——
+          工位上本来就有桌面小件，写成"二选一"的话人物卡永远弹不出来（实测踩过）。 */}
+      {人卡 ? (
+        <div className="map-prop who">
+          <div className="map-prop-head">
+            {人卡.谁}
+            <span className="map-prop-post">{人卡.职位}</span>
+          </div>
+          <div className="map-prop-use">
+            {人卡.关系} · {人卡.印象}
+          </div>
+          <div className="map-prop-more">{人卡.口风}</div>
+        </div>
+      ) : null}
 
       {/* 左下：操作说明 */}
       <div className="map-keys">

@@ -32,6 +32,7 @@ import {
   type 交互点,
 } from './level';
 import { 报位置 } from './位置总线';
+import { 取道具卡, 道具落地范围 } from '../../story/道具卡';
 
 /** 地图像素尺寸 */
 const 图宽 = 地图宽 * 格;
@@ -61,6 +62,22 @@ export interface 地图回调 {
   点人物: (名: string) => void;
   /** 附近的门变了（靠近门时提示"空格 开门/关门"） */
   附近门变了: (门: { x: number; y: number; 开: boolean } | null) => void;
+  /** 附近的**东西**变了（靠近家具/门时弹"这东西是干嘛的"卡片） */
+  附近道具变了?: (物: 附近物 | null) => void;
+  /** 附近的**同事**变了（靠近同事时弹人物卡） */
+  附近人变了?: (名: string | null) => void;
+}
+
+/**
+ * 玩家旁边的东西（给地图上的"道具卡"用）。
+ *
+ * 分两种：`道具`（家具精灵，例如打印机）和 `格子`（门 / 玻璃这种瓦片 ——
+ * 它们在 `道具表` 里查不到，只能按格子认）。
+ */
+export interface 附近物 {
+  种类: '道具' | '格子';
+  /** 道具的图名（如 prop_dev_打印机），或格子卡的名字（门 / 玻璃） */
+  键: string;
 }
 
 export class OfficeMapScene extends Phaser.Scene {
@@ -76,6 +93,12 @@ export class OfficeMapScene extends Phaser.Scene {
   private 脚下影!: Phaser.GameObjects.Ellipse;
   private 回调?: 地图回调;
   private 当前附近: 交互点 | null = null;
+  /** 玩家旁边那件东西（道具卡用）。**变了才回调**，免得每帧刷 React。 */
+  private 当前附近物: 附近物 | null = null;
+  /** 上一帧玩家在第几格 —— 没换格就不重算"旁边是什么" */
+  private 上次格 = -1;
+  /** 玩家旁边那位同事（人物卡用）。变了才回调。 */
+  private 当前附近人: string | null = null;
   /** 地图上所有门的位置（开局从网格里扫出来） */
   private 门们: Array<{ x: number; y: number }> = [];
   private 当前附近门: { x: number; y: number; 开: boolean } | null = null;
@@ -495,6 +518,8 @@ export class OfficeMapScene extends Phaser.Scene {
       if (坐) s.anims.play(`坐_${n.名}`, true);
       s.setOrigin(0.5, 1);
       s.setDepth(y);
+      // 名字挂在精灵上：靠过去弹人物卡时要按名字查人物卡库
+      s.setData('名', n.名);
       // 同事也挡路（不能从人身上穿过去）
       this.加占地(s, 22, 14);
       // 点同事 → 弹人物卡。热区用整张精灵（比占地大，好点中）
@@ -551,7 +576,126 @@ export class OfficeMapScene extends Phaser.Scene {
     this.走();
     this.排序遮挡();
     this.查交互();
+    this.查附近物();
     this.画指引线();
+  }
+
+  /**
+   * 报"玩家旁边是什么东西" —— 给地图上的**道具卡**用（用户要求"一靠近就显示"）。
+   *
+   * ⚠️ **只在玩家换格时重算**：道具表有 90 多件，每帧全扫一遍是白烧 CPU，
+   *    而且"旁边是什么"只跟人在哪一格有关，格没变就不可能变。
+   *
+   * 判定：把主角**脚下点**和每件道具的**落地矩形**比距离（不是比精灵坐标 ——
+   * 精灵锚点在脚底，拿它当圆心判定圈会整体偏下一格）。
+   * 横向容差半格+10px、纵向 1.25 格；取最近的一件，够不着就报 null（卡片自己消失）。
+   *
+   * 门 / 玻璃是**瓦片**不是道具，得单独看周围 4 格。
+   */
+  private 查附近物(): void {
+    const 位 = this.位置();
+    const 键 = 位.y * 地图宽 + 位.x;
+    const 换格了 = 键 !== this.上次格;
+    // 人物卡和道具卡共用这个开关：都在"换格"这一刻重算
+    this.查附近人(换格了);
+    if (!换格了) return;
+    this.上次格 = 键;
+
+    const 脚x = this.主角.x;
+    const 脚y = this.主角.y;
+    const 横容 = 格 / 2 + 10;
+    const 纵容 = 格 * 1.25;
+
+    let 最好: 附近物 | null = null;
+    let 最好距 = Infinity;
+    for (const p of 道具表) {
+      if (!取道具卡(p.图)) continue; // 没配卡的就不弹（宁可没有，不弹空白卡）
+      const 框 = 道具落地范围(p);
+      const dx = Math.max(0, Math.abs(脚x - 框.x) - 框.宽 / 2);
+      const dy = Math.max(0, Math.abs(脚y - 框.y) - 框.高 / 2);
+      if (dx > 横容 || dy > 纵容) continue;
+      const 距 = dx + dy;
+      if (距 < 最好距) {
+        最好距 = 距;
+        最好 = { 种类: '道具', 键: p.图 };
+      }
+    }
+
+    // 门 / 玻璃：按格子认（同一格或紧邻的一格）
+    if (!最好 || 最好距 > 6) {
+      for (const [x, y] of [
+        [位.x, 位.y],
+        [位.x + 1, 位.y],
+        [位.x - 1, 位.y],
+        [位.x, 位.y + 1],
+        [位.x, 位.y - 1],
+      ]) {
+        const 号 = 网格[y]?.[x];
+        if (号 === undefined) continue;
+        if (门配对[号] !== undefined) {
+          最好 = { 种类: '格子', 键: '门' };
+          break;
+        }
+        if (号 === 瓦片.玻璃) {
+          最好 = { 种类: '格子', 键: '玻璃' };
+          break;
+        }
+      }
+    }
+
+    // 站在工位格 / 同格有小件 → 用"同格优先"那件（桌/椅/键盘挤一起时，桌子才是玩家关心的）
+    const 优先 = this.同格优先();
+    if (优先) 最好 = 优先;
+
+    const 没变 =
+      (最好 === null && this.当前附近物 === null) ||
+      (最好 !== null && this.当前附近物 !== null && 最好.键 === this.当前附近物.键);
+    if (没变) return;
+    this.当前附近物 = 最好;
+    this.回调?.附近道具变了?.(最好);
+  }
+
+  /**
+   * 报"旁边是哪位同事" —— 给地图上的**人物卡**用。
+   *
+   * ⚠️ 和 `查附近物()` 共用"只在换格时重算"的开关：那个函数每帧先跑，
+   *    换格时会把 `上次格` 更新掉，所以这里用自己的标记判断，
+   *    不能再去比 `上次格`（会比不出来）。
+   */
+  private 查附近人(换格了: boolean): void {
+    if (!换格了) return;
+    let 谁: string | null = null;
+    // 半径 40px = 一格多一点：站在同事**隔壁那一格**也该弹卡
+    // （⚠️ 写 30 就太紧了：同事坐的椅子格和它上面那格正好差 32px，会弹不出来）
+    let 最近 = 40;
+    for (const s of this.NPC们) {
+      const d = Phaser.Math.Distance.Between(this.主角.x, this.主角.y, s.x, s.y);
+      if (d < 最近) {
+        最近 = d;
+        谁 = (s.getData('名') as string | undefined) ?? null;
+      }
+    }
+    if (谁 === this.当前附近人) return;
+    this.当前附近人 = 谁;
+    this.回调?.附近人变了?.(谁);
+  }
+
+  /**
+   * 挤在同一格的"小件 / 大件"里，挑玩家最可能想了解的那件。
+   *
+   * 为什么要这条：工位是 桌 + 椅 + 键盘 + 名牌 + 屏风 挤在一格半里，
+   * 单纯比"谁近"会弹到椅子或键盘 —— 但玩家站在那儿想知道的是
+   * 「这是我的工位」，不是「这是把椅子」。
+   *   一、站在**工位的椅子格**上 → 一律给「办公桌」的卡（工位 = 桌+椅+屏风）
+   *   二、否则如果同一格里有**桌面小件**（笔筒/名牌这种），优先给它
+   *      （大件在隔壁格已经被算到"最近"了，小件是玩家真正踩上去的那个）
+   */
+  private 同格优先(): 附近物 | null {
+    const 位 = this.位置();
+    const 桌 = 道具表.find((p) => p.图 === 'prop_ws_办公桌' && p.x === 位.x && p.y === 位.y - 1);
+    if (桌) return { 种类: '道具', 键: 桌.图 };
+    const 小件 = 道具表.find((p) => p.桌面 && p.x === 位.x && p.y === 位.y);
+    return 小件 ? { 种类: '道具', 键: 小件.图 } : null;
   }
 
   private 走(): void {
