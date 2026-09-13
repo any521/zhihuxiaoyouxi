@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 开场动画。
  *
  * 一格一格播：插图淡入 → 大字落下 → 停留 → 下一格。
@@ -72,8 +72,10 @@ export function Opening(): ReactElement {
 
       <button
         className="opening-skip"
+        onMouseEnter={() => 播放('选项悬停')}
         onClick={(e) => {
           e.stopPropagation();
+          播放('按钮');
           跳过开场();
         }}
       >

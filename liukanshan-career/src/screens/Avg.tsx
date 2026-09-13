@@ -17,6 +17,22 @@ import { 播放, 有声, 设声音 } from '../story/audio';
 
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
 
+/**
+ * 统一的按钮反馈：划过轻响、按下出声，然后才执行自己的动作。
+ * 所有可点的东西都套这个，玩家不用猜哪里能点。
+ * @param 动作 - 按钮自己的回调
+ */
+function 按钮反馈(动作?: () => void) {
+  return {
+    onMouseEnter: () => 播放('选项悬停'),
+    onFocus: () => 播放('选项悬停'),
+    onClick: () => {
+      播放('按钮');
+      动作?.();
+    },
+  };
+}
+
 /* ───────── 可拖拽的分栏 ───────── */
 
 const 列表宽范围 = { 最小: 176, 最大: 520, 默认: 244 };
@@ -106,8 +122,8 @@ function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number
   }
 }
 
-/** 群聊头像用哪几个人的脸拼 */
-const 群成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
+/** 群头像拼不满 4 个时的兜底成员 */
+const 兜底成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
 
 /** 方形头像（带像素边框） */
 function 头({ 谁, 尺寸 = 40 }: { 谁: 说话人; 尺寸?: number }): ReactElement | null {
@@ -120,11 +136,13 @@ function 头({ 谁, 尺寸 = 40 }: { 谁: 说话人; 尺寸?: number }): ReactEl
   );
 }
 
-/** 群聊头像：2×2 拼四个人的脸 */
-function 群头({ 尺寸 = 40 }: { 尺寸?: number }): ReactElement {
+/** 群聊头像：2×2 拼成员的脸（成员不够 4 个就用兜底名单补） */
+function 群头({ 成员, 尺寸 = 40 }: { 成员?: 说话人[]; 尺寸?: number }): ReactElement {
+  const 用 = (成员 && 成员.length ? 成员 : 兜底成员).filter((x) => x !== '刘看山').slice(0, 4);
+  const 四个 = 用.length >= 4 ? 用 : [...用, ...兜底成员].slice(0, 4);
   return (
     <span className="wc-face group" style={{ width: 尺寸, height: 尺寸 }}>
-      {群成员.map((谁) => {
+      {四个.map((谁) => {
         const 图 = 头像(谁);
         return 图 ? <img key={谁} src={图} alt="" draggable={false} /> : null;
       })}
@@ -145,8 +163,8 @@ function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; �
     else if (最后.种类 === '指标') 预览 = '[指标变动]';
   }
   return (
-    <button className={`wc-row${选中 ? ' on' : ''}`} onClick={点}>
-      {会话.类型 === '群聊' ? <群头 /> : 会话.对方 ? <头 谁={会话.对方} /> : null}
+    <button className={`wc-row${选中 ? ' on' : ''}`} {...按钮反馈(点)}>
+      {会话.类型 === '群聊' ? <群头 成员={会话.成员} /> : 会话.对方 ? <头 谁={会话.对方} /> : null}
       <span className="wc-row-body">
         <span className="wc-row-name">{会话.名字}</span>
         <span className="wc-row-preview">{预览 || '　'}</span>
@@ -271,6 +289,7 @@ export function Avg(): ReactElement {
   const 待暂停 = useStory((s) => s.待暂停);
   const 播完 = useStory((s) => s.播完);
   const 指标 = useStory((s) => s.指标);
+  const 段标签 = useStory((s) => s.段标签);
   const 推进一步 = useStory((s) => s.推进一步);
   const 接受邀请 = useStory((s) => s.接受邀请);
   const 选择 = useStory((s) => s.选择);
@@ -345,17 +364,17 @@ export function Avg(): ReactElement {
         <div className="wc-list-foot">
           <button
             className="wc-reset"
-            onClick={() => {
+            {...按钮反馈(() => {
               const 新 = !开启声音;
               set开启声音(新);
               设声音(新);
               if (新) 播放('按钮');
-            }}
+            })}
             title={开启声音 ? '关掉音效' : '打开音效'}
           >
             {开启声音 ? '🔊 音效开' : '🔇 音效关'}
           </button>
-          <button className="wc-reset" onClick={重置}>
+          <button className="wc-reset" {...按钮反馈(重置)}>
             重来
           </button>
         </div>
@@ -378,11 +397,13 @@ export function Avg(): ReactElement {
       {/* ── 聊天窗口 ── */}
       <section className="wc-chat">
         <header className="wc-head">
-          <button className="wc-back" onClick={回列表} title="返回会话列表">
+          <button className="wc-back" {...按钮反馈(回列表)} title="返回会话列表">
             <img src={素材('icon_back.png')} alt="返回" draggable={false} />
           </button>
           <span className="wc-head-name">{当前?.名字 ?? ''}</span>
-          <span className="wc-head-count">{当前?.类型 === '群聊' ? '群聊 · 6 人' : '在线'}</span>
+          <span className="wc-head-count">
+            {当前?.类型 === '群聊' ? `群聊 · ${(当前.成员?.length ?? 4) + 2} 人` : `在线 · ${段标签}`}
+          </span>
           {!是活跃 ? <span className="wc-head-hint">回看历史中 · 新消息在「{活跃名}」</span> : null}
         </header>
 
@@ -402,7 +423,7 @@ export function Avg(): ReactElement {
 
         <footer className="wc-foot">
           {待接受邀请 ? (
-            <button className="wc-btn" onClick={接受邀请}>
+            <button className="wc-btn" {...按钮反馈(接受邀请)}>
               {待接受邀请.按钮}
             </button>
           ) : null}
@@ -415,6 +436,7 @@ export function Avg(): ReactElement {
                   key={i}
                   className="wc-choice"
                   onMouseEnter={() => 播放('选项悬停')}
+                  onFocus={() => 播放('选项悬停')}
                   onClick={() => 选择(i)}
                 >
                   <span className="wc-choice-key">{'ABC'[i]}</span>
@@ -425,7 +447,7 @@ export function Avg(): ReactElement {
           ) : null}
 
           {待暂停 ? (
-            <button className="wc-btn" onClick={点暂停}>
+            <button className="wc-btn" {...按钮反馈(点暂停)}>
               {待暂停}
             </button>
           ) : null}

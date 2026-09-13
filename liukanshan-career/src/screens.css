@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 开场动画 + 微信式 AVG 的样式。
  *
  * 配色（2026-09-13 改）：**米白为主 + 绿色点缀**，浅色主题。
@@ -191,7 +191,12 @@
   align-items: center;
   gap: 14px;
   padding: 14px 0 12px;
-  background: var(--green);
+  background-color: var(--green);
+  /* 深绿底纹：256 的瓦片放大 2 倍铺，保持像素方块感 */
+  background-image: url('/assets/avg/wallpaper_rail.png');
+  background-size: 512px 512px;
+  background-repeat: repeat;
+  image-rendering: pixelated;
   border-right: 2px solid var(--green-2);
 }
 
@@ -290,6 +295,92 @@
 .wc-split.dragging .wc-split-grip {
   background: var(--green-2);
   height: 60px;
+}
+
+/* ═══════════════════ 统一的按钮交互反馈 ═══════════════════
+   所有可点的东西共用同一套反馈，玩家不用去猜哪里能点：
+     划过  → 提亮 + 轻微右移（列表/选项）/ 加边框（小按钮）
+     按下  → 下沉 2px、阴影收掉（"真的按下去了"）
+     键盘  → 焦点环
+   声音由组件侧统一挂（划过 = 选项悬停，点击 = 按钮）。 */
+
+.wc-row,
+.wc-choice,
+.wc-reset,
+.wc-btn,
+.wc-back,
+.opening-skip {
+  transition:
+    transform 0.09s ease-out,
+    background-color 0.14s,
+    border-color 0.14s,
+    box-shadow 0.09s,
+    color 0.14s;
+}
+
+/* 按下：统一"下沉" */
+.wc-row:active,
+.wc-choice:active,
+.wc-reset:active,
+.wc-btn:active,
+.wc-back:active,
+.opening-skip:active {
+  transform: translateY(2px);
+}
+
+/* 键盘焦点环：只用键盘时出现，鼠标点不出现 */
+.wc-row:focus-visible,
+.wc-choice:focus-visible,
+.wc-reset:focus-visible,
+.wc-btn:focus-visible,
+.wc-back:focus-visible,
+.opening-skip:focus-visible,
+.wc-split:focus-visible {
+  outline: 3px solid var(--green-2);
+  outline-offset: 2px;
+}
+
+/* 绿色功能栏上的按钮用浅色焦点环，否则看不清 */
+.wc-rail .wc-icon {
+  transition: transform 0.09s ease-out, background-color 0.14s, opacity 0.14s;
+}
+
+/* 小按钮（重来 / 音效）补齐悬停态 */
+.wc-reset {
+  transition:
+    transform 0.09s ease-out,
+    background-color 0.14s,
+    border-color 0.14s,
+    color 0.14s;
+}
+
+.wc-reset:hover {
+  background: var(--green-4);
+  border-color: var(--green-2);
+  color: var(--ink);
+}
+
+.wc-back {
+  border: 2px solid transparent;
+}
+
+.wc-back:hover {
+  background: var(--green-4);
+  border-color: var(--green-2);
+}
+
+/* 主按钮（加入群聊 / 继续）补齐悬停态 */
+.wc-btn:hover {
+  background: var(--green-3);
+}
+
+/* 会话行：划过时头像也跟着亮一点，指向更明确 */
+.wc-row:hover .wc-face {
+  border-color: var(--green-2);
+}
+
+.wc-row.on .wc-face {
+  border-color: var(--green-2);
 }
 
 .wc-list-head {
@@ -462,8 +553,9 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  /* 聊天区底：先用米白打底；等底纹素材到位就换成它 */
+  /* 聊天区底：米白 + 浅绿暗纹，256 的瓦片放大 2 倍铺 */
   background-color: var(--cream);
+  background-image: url('/assets/avg/wallpaper_chat.png');
   background-size: 512px 512px;
   background-repeat: repeat;
   image-rendering: pixelated;
