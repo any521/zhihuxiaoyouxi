@@ -61,6 +61,28 @@ for (let i = 0; i < 40; i += 1) {
 }
 const 邀请前 = await 状态();
 console.log(`群邀请出现时视图 = ${邀请前.查看}（应仍是 lin，没被跳到群里）`);
+// 邀请卡必须落在"发邀请的那个私聊"里，不能跑进群里
+const 邀请卡在哪 = await 页.evaluate(() => {
+  const s = window.__lksStory.getState();
+  return s.会话们
+    .filter((c) => c.条目.some((x) => x.种类 === '邀请'))
+    .map((c) => ({ 会话: c.id, 名字: c.名字, 有几张: c.条目.filter((x) => x.种类 === '邀请').length }));
+});
+console.log(`邀请卡所在的会话 = ${JSON.stringify(邀请卡在哪)}（应该只有 lin，没有 group）`);
+// 邀请卡在**当前会话的 DOM 里**也真的渲染出来了吗（状态对但没渲染 = 白改）
+await 等(300);
+const 邀请DOM = await 页.evaluate(() => ({
+  视图: window.__lksStory.getState().查看会话,
+  邀请卡数: document.querySelectorAll('.wc-invite').length,
+  按钮: document.querySelector('.wc-list-foot button, .wc-invite + *')?.textContent ?? null,
+  正文: document.querySelector('.wc-log')?.textContent?.slice(0, 60) ?? null,
+}));
+console.log(`DOM：视图 ${邀请DOM.视图} · .wc-invite ${邀请DOM.邀请卡数} 个 · 正文开头「${邀请DOM.正文}」`);
+// 存一张图：邀请卡应该出现在**林总的私聊**里
+const OUT0 = 'tools/shots/avg';
+await import('node:fs').then((fs) => fs.mkdirSync(OUT0, { recursive: true }));
+await 页.screenshot({ path: `${OUT0}/邀请卡在林总私聊.png` });
+console.log(`截图：${OUT0}/邀请卡在林总私聊.png`);
 
 // 接受邀请 → 应当切到群（这是"当场发生的事"）
 await 页.evaluate(() => window.__lksStory.getState().接受邀请());
@@ -140,6 +162,8 @@ console.log(`  DOM 上：.wc-narration ${事件二流.DOM旁白} 个（应为 0�
 
 const 好 =
   邀请前.查看 === 'lin' &&
+  邀请卡在哪.length === 1 &&
+  邀请卡在哪[0]?.会话 === 'lin' &&
   邀请后.查看 === 'group' &&
   汇合.查看 === 'group' &&
   (有周岚?.未读 ?? 0) > 0 &&
