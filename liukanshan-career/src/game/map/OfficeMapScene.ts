@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -83,9 +83,6 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 每扇门的物理挡板：关着用 关挡，开着用 开挡 */
   private 门体 = new Map<string, { 关挡: Phaser.GameObjects.Rectangle; 开挡: Phaser.GameObjects.Rectangle }>();
   private 通行表: Uint8Array | null = null;
-  /** 路径缓存：主角换格或目标变了才重算 */
-  private 路缓存: Array<{ x: number; y: number }> | null = null;
-  private 路缓存键 = '';
   private 朝向 = 0;
   private 目标 = 交互点表[0] as 交互点 | undefined;
 
@@ -130,7 +127,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const 新 = 门配对[旧];
     if (新 === undefined) return;
     this.通行表 = null; // 门的状态变了，通行表要重算
-    this.路缓存键 = '';
     this.改门格(x, y, 新);
     const 偏 = 门另一半[旧];
     if (!偏) return;
@@ -686,14 +682,19 @@ export class OfficeMapScene extends Phaser.Scene {
   /**
    * A* 找路（四方向）。
    *
-   * ⚠️ 为什么必须寻路而不是拉直线：直线会**直接穿过墙**，
-   *    玩家看到的是"指引线从墙里穿过去"，完全没法照着走。
+   * ⚠️ **指引线不用它了** —— 用户要求指引线改成"直线穿墙"（见 `画指引线()`）。
+   *    但这个方法**故意留着**（所以是 public，不是 private）：
+   *    以后要做"点地自动寻路走过去"或"NPC 自己走到某处"，
+   *    直接 `this.找路(起x, 起y, 终x, 终y)` 就能拿到一条**真能走**的格子路径；
+   *    调试时也可以从控制台 `__lksMap.找路(...)` 问"这条路到底通不通"。
+   *
+   * 它解决的问题是：直线会**直接穿过墙**，玩家看到的是"指引线从墙里穿过去"，
+   * 完全没法照着走 —— 所以真要"能照着走"的路线时，必须用这里算出来的路。
    *
    * 地图只有 45×30 = 1350 格，很小，A* 跑一次是微秒级。
-   * 但仍然**做了缓存**：只有主角换了格子或目标变了才重算，
-   * 不然每帧跑一次白白浪费。
+   * 调用方记得缓存（只有主角换了格子或目标变了才重算），不然每帧跑一次白白浪费。
    */
-  private 找路(起x: number, 起y: number, 终x: number, 终y: number): Array<{ x: number; y: number }> | null {
+  找路(起x: number, 起y: number, 终x: number, 终y: number): Array<{ x: number; y: number }> | null {
     const 通 = this.取通行表();
     const 键 = (x: number, y: number): number => y * 地图宽 + x;
     const 在图内 = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < 地图宽 && y < 地图高;
@@ -778,66 +779,51 @@ export class OfficeMapScene extends Phaser.Scene {
     return null;
   }
 
-  /** 指引线：**沿地形寻路**的流动绿点（会绕开墙和关着的门） */
+  /**
+   * 指引线：从主角**拉一条直线**指向目标（流动绿点）。
+   *
+   * ⚠️ 这是**用户明确要求的**：线要**走直线，可以穿墙**。
+   *    它只是一个"目标在哪边"的方向标，不是可走路线 ——
+   *    所以不查通行表、不绕家具、不绕关着的门，一路直插过去。
+   *    （旧版是 A* 沿地形寻路，见下面 `找路()` 的注释；那套代码保留着没删。）
+   *
+   * 这样做的代价：线可能横穿墙体/办公桌，看着"不合物理"。
+   * 好处：永远是两点之间最短的一条，玩家一眼就知道该往哪个方向走，
+   *      不会因为要绕远路而看起来在乱指。
+   */
   private 画指引线(): void {
     const g = this.指引线;
     g.clear();
     const 目标 = this.目标;
     if (!目标) return;
 
-    const 自 = this.位置();
-    const 距 = Phaser.Math.Distance.Between(
-      this.主角.x,
-      this.主角.y,
-      目标.x * 格 + 格 / 2,
-      目标.y * 格 + 格,
-    );
-    if (距 < 交互半径) return; // 已经到了就不画
+    const 起x = this.主角.x;
+    const 起y = this.主角.y - 6; // 从胸口起画，不从脚底
+    const 终x = 目标.x * 格 + 格 / 2;
+    const 终y = 目标.y * 格 + 格;
 
-    // 路径缓存：主角换了格、或目标变了，才重算
-    const 路键 = `${自.x},${自.y}->${目标.x},${目标.y}`;
-    if (路键 !== this.路缓存键) {
-      this.路缓存键 = 路键;
-      this.路缓存 = this.找路(自.x, 自.y, 目标.x, 目标.y);
-    }
-    const 路 = this.路缓存;
-    if (!路 || 路.length < 2) return;
+    const 距 = Phaser.Math.Distance.Between(起x, 起y, 终x, 终y);
+    if (距 < 交互半径) return; // 已经到了就只留目标圈（不再画线）
 
-    // 把格子路径转成像素点串
-    const 点串: Array<{ x: number; y: number }> = [{ x: this.主角.x, y: this.主角.y - 6 }];
-    for (let i = 1; i < 路.length; i += 1) {
-      const p = this.格到像素(路[i].x, 路[i].y);
-      点串.push({ x: p.x, y: p.y - 8 });
-    }
-
-    // 沿路径按固定间距铺流动的绿点
+    // 沿这条直线按固定间距铺流动的绿点
     const 步 = 9;
     const 流 = (this.time.now / 40) % 步;
-    let 走 = 0;
-    for (let i = 1; i < 点串.length; i += 1) {
-      const a = 点串[i - 1];
-      const b = 点串[i];
-      const 段长 = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
-      for (let t = 0; t < 段长; t += 步) {
-        const 实际 = (走 + t - 流) % 步;
-        if (实际 < 0.5 || 实际 > 步 - 0.5) continue;
-        const 位 = t / 段长;
-        const x = Phaser.Math.Linear(a.x, b.x, 位);
-        const y = Phaser.Math.Linear(a.y, b.y, 位);
-        // 越靠近目标越亮；**明确用绿色**
-        const 近 = Phaser.Math.Clamp((走 + t) / (点串.length * 24), 0, 1);
-        g.fillStyle(0x4a8f4f, 0.55 + 0.45 * 近); // 高亮墨绿
-        g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
-      }
-      走 += 段长;
+    for (let t = 0; t < 距; t += 步) {
+      const 实际 = (t - 流) % 步;
+      if (实际 < 0.5 || 实际 > 步 - 0.5) continue;
+      const 位 = t / 距;
+      const x = Phaser.Math.Linear(起x, 终x, 位);
+      const y = Phaser.Math.Linear(起y, 终y, 位);
+      // 越靠近目标越亮；**明确用绿色**
+      const 近 = Phaser.Math.Clamp(位, 0, 1);
+      g.fillStyle(0x4a8f4f, 0.55 + 0.45 * 近); // 高亮墨绿
+      g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
     }
 
     // 目标处画一个呼吸的绿圈
-    const tx = 目标.x * 格 + 格 / 2;
-    const ty = 目标.y * 格 + 格;
     const r = 8 + Math.sin(this.time.now / 220) * 2;
     g.lineStyle(2, 0x2f5d3a, 1); // 墨绿
-    g.strokeCircle(tx, ty, r);
+    g.strokeCircle(终x, 终y, r);
   }
 
   /* ───────── 工具 ───────── */
