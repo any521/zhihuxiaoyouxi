@@ -25,8 +25,9 @@ import {
   门另一半,
   通行瓦片,
   交互点表,
-  道具表,
+ 道具表,
   占地表,
+  座位表,
   取NPC,
   type NPC位,
   type 交互点,
@@ -502,9 +503,11 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建NPC批(取NPC(段号));
   }
 
-  /** 这个格子是不是"转椅"（站在椅子上 = 坐着）*/
+  /** 这个格子是不是"能坐的座位"（站/坐在椅子上 → 播坐姿动画）
+   *  ⚠️ 用 `座位表` 查，不扫 `道具表`：座位表还包含**会议椅**（茶水间/会议室那几把），
+   *     只认转椅的话，坐在茶水间的同事会**站着**摆在那儿。 */
   private 是椅子(x: number, y: number): boolean {
-    return 道具表.some((p) => p.图 === 'prop_ws_转椅' && p.x === x && p.y === y);
+    return 座位表.some((s) => s.x === x && s.y === y);
   }
 
   private 建NPC批(排布: NPC位[]): void {
