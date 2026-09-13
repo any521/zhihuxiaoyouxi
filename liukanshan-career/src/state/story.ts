@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 开场与剧情的状态机。
  *
  * 设计：剧本是一条**扁平队列**，引擎每次 tick 取一条。
@@ -15,6 +15,7 @@ import type { 指标, 指标增减, 节拍, 说话人, 知乎卡数据 } from '.
 import { 开场镜表 } from '../story/opening';
 import { 段日期, 取段 } from '../story/script';
 import { 地图片段表 } from '../story/mapScenes';
+import { 取知乎卡 } from '../story/zhihu';
 import { 播放 } from '../story/audio';
 
 /** 当前在哪个屏幕 */
@@ -276,7 +277,9 @@ export const useStory = create<剧情状态>((set, get) => ({
         return;
       }
       case '知乎卡': {
-        追加({ 种类: '知乎卡', id: 下个id(), 卡片: 本.卡片 });
+        // 按主题去离线库里查真实内容（作者/摘录/链接都是真检索到的原文）。
+        // 库里没有就返回「待接入」占位 —— 绝不编造来源。
+        追加({ 种类: '知乎卡', id: 下个id(), 卡片: 取知乎卡(本.卡片.主题) });
         return;
       }
       case '选择': {

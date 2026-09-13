@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -257,11 +257,20 @@ function 一条({ 项, 群聊 }: { 项: 渲染项; 群聊: boolean }): ReactElem
               <div className="wc-zhihu-title">{项.卡片.标题}</div>
               <div className="wc-zhihu-meta">
                 {项.卡片.作者 ? <span>{项.卡片.作者}</span> : null}
-                {项.卡片.赞同 != null ? <span>赞同 {项.卡片.赞同}</span> : null}
+                {/* 赞同 0 就别显示了：真实但看着尴尬，反而像没人认可 */}
+                {项.卡片.赞同 ? <span>赞同 {项.卡片.赞同}</span> : null}
+                <span className="wc-zhihu-from">来自知乎</span>
               </div>
-              {项.卡片.摘录 ? <div className="wc-zhihu-text">{项.卡片.摘录}</div> : null}
+              {项.卡片.摘录 ? <知乎正文 文本={项.卡片.摘录} /> : null}
               {项.卡片.链接 ? (
-                <a className="wc-zhihu-link" href={项.卡片.链接} target="_blank" rel="noreferrer">
+                <a
+                  className="wc-zhihu-link"
+                  href={项.卡片.链接}
+                  target="_blank"
+                  rel="noreferrer"
+                  onMouseEnter={() => 播放('选项悬停')}
+                  onClick={() => 播放('按钮')}
+                >
                   查看原文 ▸
                 </a>
               ) : null}
@@ -407,6 +416,30 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
         <div className="wc-search-tip">没有找到「{关键词}」相关的记录。</div>
       ) : null}
     </div>
+  );
+}
+
+/** 知乎卡正文：默认只露几行，点「展开全文」看全部（真实摘录有好几段，全铺开会太长） */
+function 知乎正文({ 文本 }: { 文本: string }): ReactElement {
+  const [展开, set展开] = useState(false);
+  const 长 = 文本.length > 120;
+  return (
+    <>
+      <div className={`wc-zhihu-text${长 && !展开 ? ' 收起' : ''}`}>{文本}</div>
+      {长 ? (
+        <button
+          className="wc-zhihu-more"
+          onMouseEnter={() => 播放('选项悬停')}
+          onClick={(e) => {
+            e.stopPropagation();
+            播放('按钮');
+            set展开((v) => !v);
+          }}
+        >
+          {展开 ? '收起 ▴' : '展开全文 ▾'}
+        </button>
+      ) : null}
+    </>
   );
 }
 

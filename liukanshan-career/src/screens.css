@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 开场动画 + 微信式 AVG 的样式。
  *
  * 配色（2026-09-13 改）：**米白为主 + 绿色点缀**，浅色主题。
@@ -1070,8 +1070,52 @@
 
 .wc-zhihu-text {
   font-size: 12px;
-  line-height: 1.8;
+  line-height: 1.9;
   color: var(--ink);
+  /* 摘录是真实原文，含换行分段，必须保留 */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 默认收起：只露 6 行，点「展开全文」看全部 */
+.wc-zhihu-text.收起 {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.wc-zhihu-more {
+  display: block;
+  margin-top: 8px;
+  padding: 5px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  color: var(--blue);
+  background: transparent;
+  border: 2px solid var(--blue);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background-color 0.14s, color 0.14s;
+}
+
+.wc-zhihu-more:hover {
+  color: #fff;
+  background: var(--blue);
+}
+
+.wc-zhihu-more:active {
+  transform: translateY(2px);
+}
+
+.wc-zhihu-more:focus-visible {
+  outline: 3px solid var(--green-2);
+  outline-offset: 2px;
+}
+
+.wc-zhihu-from {
+  margin-left: auto;
+  color: var(--blue);
 }
 
 .wc-zhihu-link {
