@@ -1,23 +1,50 @@
 /**
  * 开场动画 + 微信式 AVG 的样式。
  *
- * 三条原则：
- *   一、像素感来自 PNG（头像、图标、气泡、贴纸），文字一律 DOM
- *   二、气泡九宫格必须带 `fill`，否则中间不填色 → 文字看不见
- *   三、配色直接取 32 色板：功能栏 #1b2028 · 会话列表 #262a33 · 选中 #3a4658 · 红点 #e04f3f
+ * 配色（2026-09-13 改）：**米白为主 + 绿色点缀**，浅色主题。
+ * 全部取自项目 32 色板，和角色/道具/气泡能接上：
+ *   米白 #f7efdd #f4f0ea #e8dcc0 · 绿 #a8d98a #7cc26b #4a8f4f #2f5d3a · 墨 #241a12
+ *
+ * 字体：方舟像素字体 12px（OFL）。三条铁律保证"像素但不糊"：
+ *   一、-webkit-font-smoothing: none —— 关掉抗锯齿（糊的根源）
+ *   二、字号只用 12 / 24 / 36（原生 12 的整数倍，非整数倍必糊）
+ *   三、不做任何缩放变形
  */
 
+@font-face {
+  font-family: 'ArkPixel';
+  src: url('/fonts/ark-pixel-12px-zh_cn.woff2') format('woff2');
+  font-display: swap;
+  font-weight: normal;
+  font-style: normal;
+}
+
 :root {
-  --wc-rail: #14161c;
-  --wc-list: #262a33;
-  --wc-list-2: #22263042;
-  --wc-on: #3a4658;
-  --wc-chat: #1b2028;
-  --wc-line: #ffffff14;
-  --wc-text: #e8eef8;
-  --wc-dim: #8d99ab;
-  --wc-red: #e04f3f;
-  --wc-blue: #4a8fd4;
+  --cream: #f7efdd;
+  --cream-2: #f4f0ea;
+  --cream-3: #e8dcc0;
+  --cream-4: #dccfb0;
+  --green: #4a8f4f;
+  --green-2: #2f5d3a;
+  --green-3: #7cc26b;
+  --green-4: #a8d98a;
+  --ink: #241a12;
+  --ink-2: #6b4423;
+  --line: rgba(36, 26, 18, 0.16);
+  --red: #e04f3f;
+  --blue: #2c5fa8;
+}
+
+/* 全局：像素字体 + 关抗锯齿 */
+.pixel,
+.opening,
+.wechat {
+  font-family: 'ArkPixel', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  -webkit-font-smoothing: none;
+  -moz-osx-font-smoothing: grayscale;
+  font-smooth: never;
+  text-rendering: geometricPrecision;
+  font-synthesis: none;
 }
 
 /* ═══════════════════ 开场动画 ═══════════════════ */
@@ -25,7 +52,7 @@
 .opening {
   position: fixed;
   inset: 0;
-  background: #000;
+  background: #10141c;
   cursor: pointer;
   overflow: hidden;
 }
@@ -57,8 +84,8 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(120% 90% at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.45) 60%, rgba(0, 0, 0, 0.82) 100%),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.7) 100%);
+    radial-gradient(120% 90% at 50% 45%, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.42) 60%, rgba(0, 0, 0, 0.8) 100%),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 35%, rgba(0, 0, 0, 0.65) 100%);
 }
 
 .opening-text {
@@ -73,20 +100,21 @@
   padding: 6vw;
 }
 
+/* 字号只取 12 的整数倍：36 / 48 / 60 / 72 */
 .opening-big {
-  font-size: clamp(28px, 5.2vw, 68px);
-  font-weight: 800;
-  letter-spacing: 0.06em;
+  font-size: 60px;
   line-height: 1.25;
-  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.55), 0 0 34px rgba(255, 190, 110, 0.28);
+  letter-spacing: 0.06em;
+  color: #fff;
+  text-shadow: 3px 3px 0 rgba(0, 0, 0, 0.6);
   animation: text-in 0.9s 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
 .opening-small {
-  font-size: clamp(14px, 1.7vw, 22px);
+  font-size: 24px;
   letter-spacing: 0.08em;
-  color: #f0e2cd;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.85);
+  color: #ffe9c4;
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.75);
   animation: text-in 0.9s 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
@@ -100,15 +128,14 @@
 }
 
 .opening-dots .dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+  width: 8px;
+  height: 8px;
   background: rgba(255, 255, 255, 0.25);
   transition: background 0.3s;
 }
 
 .opening-dots .dot.on {
-  background: #ffcb6b;
+  background: var(--green-3);
 }
 
 .opening-skip {
@@ -116,17 +143,16 @@
   right: 20px;
   bottom: 20px;
   padding: 8px 16px;
-  font-size: 14px;
-  color: var(--wc-text);
+  font-size: 12px;
+  font-family: inherit;
+  color: #fff;
   background: rgba(12, 14, 20, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
   cursor: pointer;
-  backdrop-filter: blur(4px);
 }
 
 .opening-skip:hover {
-  background: rgba(30, 34, 46, 0.85);
+  background: rgba(30, 34, 46, 0.9);
 }
 
 @keyframes shot-fade {
@@ -140,38 +166,33 @@
 }
 
 @keyframes text-in {
-  from { opacity: 0; transform: translateY(14px); }
+  from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* ═══════════════════ 微信式 AVG ═══════════════════ */
+/* ═══════════════════ 微信式 AVG（浅色主题）═══════════════════ */
 
 .wechat {
   position: fixed;
   inset: 0;
   display: flex;
   overflow: hidden;
-  background: var(--wc-chat);
-  color: var(--wc-text);
-  font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  background: var(--cream);
+  color: var(--ink);
 }
 
-/* ── 左侧功能栏 ── */
+/* ── 左侧功能栏：整个界面唯一的大面积绿色 ── */
 
 .wc-rail {
   flex: none;
-  width: 58px;
+  width: 62px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 14px;
   padding: 14px 0 12px;
-  background: var(--wc-rail);
-  border-right: 1px solid var(--wc-line);
-}
-
-.wc-me {
-  display: block;
+  background: var(--green);
+  border-right: 2px solid var(--green-2);
 }
 
 .wc-rail-icons {
@@ -182,39 +203,41 @@
 }
 
 .wc-icon {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: grid;
   place-items: center;
-  border-radius: 7px;
-  opacity: 0.55;
+  opacity: 0.65;
 }
 
 .wc-icon.on {
   opacity: 1;
-  background: rgba(74, 143, 212, 0.16);
+  background: rgba(255, 255, 255, 0.22);
+  outline: 2px solid rgba(255, 255, 255, 0.5);
 }
 
 .wc-icon.bottom {
   margin-top: auto;
 }
 
+/* 图标素材是深色的，放在绿底上要反白 */
 .wc-icon img {
   width: 22px;
   height: 22px;
   object-fit: contain;
   image-rendering: pixelated;
+  filter: invert(1) brightness(2);
 }
 
 /* ── 会话列表 ── */
 
 .wc-list {
   flex: none;
-  width: 238px;
+  width: 244px;
   display: flex;
   flex-direction: column;
-  background: var(--wc-list);
-  border-right: 1px solid var(--wc-line);
+  background: var(--cream-2);
+  border-right: 2px solid var(--line);
 }
 
 .wc-list-head {
@@ -222,20 +245,21 @@
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
-  border-bottom: 1px solid var(--wc-line);
+  background: var(--cream-3);
+  border-bottom: 2px solid var(--line);
 }
 
 .wc-list-title {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 24px;
   letter-spacing: 0.06em;
+  color: var(--ink);
 }
 
 .wc-list-icons {
   margin-left: auto;
   display: flex;
   gap: 10px;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .wc-list-icons img {
@@ -244,22 +268,22 @@
   image-rendering: pixelated;
 }
 
+/* 指标条：白底绿框，像三枚小徽章 */
 .wc-metrics {
   display: flex;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--wc-line);
+  border-bottom: 2px solid var(--line);
 }
 
 .wc-metrics span {
   flex: 1;
   text-align: center;
-  font-size: 11.5px;
-  padding: 4px 2px;
-  border-radius: 5px;
-  color: #cfe0ff;
-  background: rgba(74, 143, 212, 0.14);
-  border: 1px solid rgba(74, 143, 212, 0.28);
+  font-size: 12px;
+  padding: 5px 2px;
+  color: var(--green-2);
+  background: #fff;
+  border: 2px solid var(--green-4);
 }
 
 .wc-rows {
@@ -280,14 +304,15 @@
   text-align: left;
   cursor: pointer;
   color: inherit;
+  font-family: inherit;
 }
 
 .wc-row:hover {
-  background: rgba(255, 255, 255, 0.045);
+  background: rgba(168, 217, 138, 0.28);
 }
 
 .wc-row.on {
-  background: var(--wc-on);
+  background: var(--green-4);
 }
 
 .wc-row-body {
@@ -295,12 +320,12 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
 .wc-row-name {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 24px;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -308,7 +333,7 @@
 
 .wc-row-preview {
   font-size: 12px;
-  color: var(--wc-dim);
+  color: var(--ink-2);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -320,30 +345,29 @@
   top: 10px;
   min-width: 18px;
   height: 18px;
-  padding: 0 5px;
-  border-radius: 9px;
-  font-size: 11px;
-  font-weight: 700;
+  padding: 0 4px;
+  font-size: 12px;
   line-height: 18px;
   text-align: center;
   color: #fff;
-  background: var(--wc-red);
+  background: var(--red);
+  border: 2px solid var(--cream-2);
 }
 
 .wc-reset {
   margin: 8px 12px 12px;
-  padding: 7px;
+  padding: 8px;
   font-size: 12px;
-  color: var(--wc-dim);
+  font-family: inherit;
+  color: var(--ink-2);
   background: transparent;
-  border: 1px solid var(--wc-line);
-  border-radius: 6px;
+  border: 2px solid var(--line);
   cursor: pointer;
 }
 
 .wc-reset:hover {
-  color: var(--wc-text);
-  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--ink);
+  border-color: var(--ink-2);
 }
 
 /* ── 头像 ── */
@@ -351,11 +375,9 @@
 .wc-face {
   flex: none;
   display: block;
-  border-radius: 6px;
   overflow: hidden;
-  background: #10141c;
-  border: 2px solid #241a12;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+  background: var(--cream-3);
+  border: 2px solid var(--ink);
 }
 
 .wc-face img {
@@ -370,11 +392,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1px;
-  background: #10141c;
-}
-
-.wc-face.group img {
-  background: #2b3444;
+  background: var(--ink);
 }
 
 /* ── 聊天窗口 ── */
@@ -384,8 +402,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  /* 聊天区底：深色平整底，字压在上面不抢戏 */
-  background-color: var(--wc-chat);
+  /* 聊天区底：先用米白打底；等底纹素材到位就换成它 */
+  background-color: var(--cream);
+  background-size: 512px 512px;
+  background-repeat: repeat;
+  image-rendering: pixelated;
 }
 
 .wc-head {
@@ -394,15 +415,15 @@
   align-items: center;
   gap: 10px;
   padding: 0 16px;
-  height: 48px;
-  background: #262a33;
-  border-bottom: 1px solid var(--wc-line);
+  min-height: 52px;
+  background: var(--cream-3);
+  border-bottom: 2px solid var(--line);
 }
 
 .wc-back {
   display: none;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   place-items: center;
   background: transparent;
   border: none;
@@ -414,23 +435,25 @@
   width: 18px;
   height: 18px;
   image-rendering: pixelated;
-  filter: invert(1) opacity(0.8);
 }
 
 .wc-head-name {
-  font-size: 15px;
-  font-weight: 700;
+  font-size: 24px;
+  color: var(--ink);
 }
 
 .wc-head-count {
   font-size: 12px;
-  color: var(--wc-dim);
+  color: var(--ink-2);
 }
 
 .wc-head-hint {
   margin-left: auto;
   font-size: 12px;
-  color: #ffcb6b;
+  color: var(--ink-2);
+  background: #fff;
+  border: 2px solid var(--green-4);
+  padding: 4px 8px;
 }
 
 .wc-body {
@@ -439,16 +462,16 @@
   overflow-x: hidden;
   cursor: pointer;
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  scrollbar-color: rgba(36, 26, 18, 0.25) transparent;
 }
 
 .wc-body-inner {
-  max-width: 720px;
+  max-width: 760px;
   margin: 0 auto;
-  padding: 20px 20px 26px;
+  padding: 22px 22px 28px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 /* ── 一条消息 ── */
@@ -465,7 +488,7 @@
 }
 
 .wc-msg-body {
-  max-width: min(74%, 520px);
+  max-width: min(74%, 540px);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -477,24 +500,28 @@
 
 .wc-msg-name {
   font-size: 12px;
-  color: #9fb0c8;
+  color: var(--ink-2);
   padding-left: 4px;
 }
 
-/* 气泡九宫格。两个坑：① 必须带 fill，否则中间不填色、深色文字看不见
-   ② 底部要单独切 12px，否则把尾巴拦腰截断 */
+/* 气泡九宫格。三个坑都踩过：
+   ① slice 必须带 fill，否则中间不填色 → 深色文字压在背景上看不见
+   ② 底部要单独切 12px，否则把尾巴拦腰截断
+   ③ border-width 必须是 slice 的**整数倍**（12 = 6×2、24 = 12×2），
+      否则九宫格会被非整数缩放，边缘发虚
+   另外：气泡素材**自带深色描边**，所以不要再叠投影，
+   否则会变成"框里套框"的双重边框。 */
 .wc-bubble {
   border-style: solid;
-  border-width: 12px 12px 22px 12px;
+  border-width: 12px 12px 24px 12px;
   border-image-slice: 6 6 12 6 fill;
   border-image-repeat: stretch;
   image-rendering: pixelated;
-  font-size: 15px;
-  line-height: 1.6;
+  font-size: 24px;
+  line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
-  color: #241a12;
-  filter: drop-shadow(0 3px 0 rgba(0, 0, 0, 0.3));
+  color: var(--ink);
 }
 
 .wc-bubble.sticker {
@@ -502,12 +529,12 @@
   border-image: none;
   background: transparent;
   padding: 0;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(2px 3px 0 rgba(36, 26, 18, 0.25));
 }
 
 .wc-sticker {
-  width: 68px;
-  height: 90px;
+  width: 72px;
+  height: 96px;
   image-rendering: pixelated;
   display: block;
 }
@@ -516,14 +543,13 @@
   display: flex;
   gap: 5px;
   align-items: center;
-  min-height: 22px;
+  min-height: 24px;
 }
 
 .wc-bubble.typing .d {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
-  background: #8a94a6;
+  background: var(--ink-2);
   animation: typing 1s infinite ease-in-out;
 }
 
@@ -531,25 +557,24 @@
 .wc-bubble.typing .d:nth-child(3) { animation-delay: 0.32s; }
 
 @keyframes typing {
-  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
-  30% { opacity: 1; transform: translateY(-3px); }
+  0%, 60%, 100% { opacity: 0.3; }
+  30% { opacity: 1; }
 }
 
 @keyframes bubble-in {
-  from { opacity: 0; transform: translateY(10px) scale(0.97); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── 系统行 / 旁白 / 指标 ── */
 
 .wc-system {
   align-self: center;
-  font-size: 12.5px;
-  color: var(--wc-dim);
-  background: rgba(18, 22, 30, 0.85);
-  border: 1px solid var(--wc-line);
-  border-radius: 999px;
-  padding: 5px 16px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: rgba(255, 255, 255, 0.85);
+  border: 2px solid var(--line);
+  padding: 5px 14px;
   animation: bubble-in 0.3s both;
 }
 
@@ -557,23 +582,23 @@
   align-self: center;
   max-width: 82%;
   text-align: center;
-  font-size: 14px;
-  line-height: 1.75;
-  color: #d8cbb4;
-  letter-spacing: 0.04em;
-  padding: 10px 18px;
-  border-top: 1px solid var(--wc-line);
-  border-bottom: 1px solid var(--wc-line);
+  font-size: 24px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  padding: 8px 18px;
+  background: rgba(255, 255, 255, 0.6);
+  border-top: 2px solid var(--line);
+  border-bottom: 2px solid var(--line);
   animation: bubble-in 0.34s both;
 }
 
 .wc-metric {
   align-self: center;
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #ffd88a;
-  text-shadow: 0 2px 10px rgba(255, 180, 60, 0.3);
+  font-size: 24px;
+  color: var(--green-2);
+  background: var(--green-4);
+  border: 2px solid var(--green-2);
+  padding: 6px 16px;
   animation: bubble-in 0.34s both;
 }
 
@@ -584,11 +609,10 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  width: min(100%, 400px);
+  width: min(100%, 420px);
   padding: 12px 14px;
-  background: rgba(30, 35, 46, 0.95);
-  border: 1px solid var(--wc-line);
-  border-radius: 10px;
+  background: #fff;
+  border: 2px solid var(--ink);
   animation: bubble-in 0.34s both;
 }
 
@@ -596,106 +620,98 @@
   flex: none;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
   display: grid;
   place-items: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: #0d1016;
-  background: linear-gradient(140deg, #ffcb6b, #ff9f4a);
+  font-size: 24px;
+  color: #fff;
+  background: var(--green);
+  border: 2px solid var(--green-2);
 }
 
 .wc-invite-body { min-width: 0; }
 
 .wc-invite-title {
-  font-size: 14.5px;
-  font-weight: 700;
+  font-size: 24px;
+  color: var(--ink);
 }
 
 .wc-invite-sub {
-  font-size: 12.5px;
-  color: var(--wc-dim);
-  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-2);
+  margin-top: 4px;
 }
 
 .wc-invite-done {
   margin-left: auto;
   font-size: 12px;
-  color: #6fcf8f;
+  color: var(--green-2);
 }
 
 /* ── 知乎卡 ── */
 
 .wc-zhihu {
   align-self: center;
-  width: min(100%, 500px);
-  background: rgba(24, 29, 40, 0.96);
-  border: 1px solid rgba(74, 143, 212, 0.45);
-  border-radius: 12px;
-  overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  width: min(100%, 520px);
+  background: #fff;
+  border: 2px solid var(--blue);
+  box-shadow: 4px 4px 0 rgba(36, 26, 18, 0.18);
   animation: bubble-in 0.4s both;
 }
 
 .wc-zhihu.empty {
-  border-color: var(--wc-line);
+  border-color: var(--line);
 }
 
 .wc-zhihu-head {
-  padding: 9px 14px;
-  font-size: 12.5px;
-  letter-spacing: 0.06em;
-  color: #cfe0ff;
-  background: linear-gradient(90deg, rgba(74, 143, 212, 0.28), rgba(74, 143, 212, 0.06));
-  border-bottom: 1px solid var(--wc-line);
+  padding: 8px 14px;
+  font-size: 12px;
+  color: #fff;
+  background: var(--blue);
 }
 
 .wc-zhihu-body { padding: 12px 14px 14px; }
 
 .wc-zhihu-body.placeholder {
-  font-size: 13px;
-  color: #8693a8;
-  font-style: italic;
+  font-size: 12px;
+  color: var(--ink-2);
 }
 
 .wc-zhihu-title {
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.5;
-  margin-bottom: 6px;
+  font-size: 24px;
+  line-height: 1.4;
+  color: var(--ink);
+  margin-bottom: 8px;
 }
 
 .wc-zhihu-meta {
   display: flex;
   gap: 12px;
-  font-size: 12.5px;
-  color: var(--wc-dim);
+  font-size: 12px;
+  color: var(--ink-2);
   margin-bottom: 8px;
 }
 
 .wc-zhihu-text {
-  font-size: 13.5px;
-  line-height: 1.7;
-  color: #cbd6e6;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--ink);
 }
 
 .wc-zhihu-link {
   display: inline-block;
   margin-top: 10px;
-  font-size: 13px;
-  color: #7fb4ff;
-  text-decoration: none;
+  font-size: 12px;
+  color: var(--blue);
+  text-decoration: underline;
 }
-
-.wc-zhihu-link:hover { text-decoration: underline; }
 
 /* ── 底栏（输入区位置）── */
 
 .wc-foot {
   flex: none;
-  padding: 12px 16px 16px;
-  background: #262a33;
-  border-top: 1px solid var(--wc-line);
+  padding: 12px 16px 14px;
+  background: var(--cream-3);
+  border-top: 2px solid var(--line);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -703,90 +719,84 @@
 }
 
 .wc-choices {
-  width: min(100%, 660px);
+  width: min(100%, 680px);
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 8px;
   animation: bubble-in 0.34s both;
 }
 
 .wc-choices-hint {
-  font-size: 12.5px;
-  color: var(--wc-dim);
+  font-size: 12px;
+  color: var(--ink-2);
   text-align: center;
   margin-bottom: 2px;
 }
 
-/* 选项做成"要发出去的消息"：左边一个 ABC 键位，右边是内容 */
+/* 选项做成"要发出去的消息"：左边 ABC 键位，右边内容 */
 .wc-choice {
   display: flex;
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 11px 16px;
+  padding: 10px 14px;
   text-align: left;
-  font-size: 15px;
-  color: var(--wc-text);
-  background-color: #2f3543;
-  border: 1px solid var(--wc-line);
-  border-left: 4px solid var(--wc-blue);
-  border-radius: 8px;
+  font-size: 24px;
+  font-family: inherit;
+  color: var(--ink);
+  background: var(--cream-2);
+  border: 2px solid var(--ink);
   cursor: pointer;
-  transition: transform 0.12s, background 0.15s, border-color 0.15s;
+  transition: transform 0.1s, background 0.15s;
 }
 
 .wc-choice:hover {
-  background-color: rgba(74, 143, 212, 0.35);
-  border-color: rgba(140, 195, 238, 0.5);
-  transform: translateX(3px);
+  background: var(--green-4);
+  transform: translateX(4px);
 }
 
 .wc-choice-key {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: grid;
   place-items: center;
-  font-size: 13px;
-  font-weight: 800;
-  color: #0d1016;
-  background: #8ec3ee;
-  border-radius: 6px;
+  font-size: 24px;
+  color: #fff;
+  background: var(--green);
+  border: 2px solid var(--green-2);
 }
 
 .wc-choice-label { flex: 1; }
 
 .wc-btn {
-  padding: 11px 34px;
-  font-size: 15.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: #0d1016;
-  background: linear-gradient(140deg, #ffd88a, #ffab4a);
-  border: none;
-  border-radius: 10px;
+  padding: 10px 32px;
+  font-size: 24px;
+  font-family: inherit;
+  color: #fff;
+  background: var(--green);
+  border: 2px solid var(--green-2);
+  box-shadow: 3px 3px 0 rgba(36, 26, 18, 0.35);
   cursor: pointer;
-  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.4);
   animation: bubble-in 0.3s both;
 }
 
 .wc-btn:active {
-  transform: translateY(2px);
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+  transform: translate(2px, 2px);
+  box-shadow: 1px 1px 0 rgba(36, 26, 18, 0.35);
 }
 
 .wc-hint {
-  font-size: 12.5px;
-  color: #7b8798;
-  letter-spacing: 0.06em;
+  font-size: 12px;
+  color: var(--ink-2);
 }
 
-.wc-hint.done { color: #ffcb6b; }
+.wc-hint.done { color: var(--green-2); }
 
 /* ═══════════════════ 手机（窄屏）═══════════════════ */
 
 @media (max-width: 720px) {
-  /* 手机上微信只有"列表"和"聊天"两屏，没有左侧功能栏 */
+  /* 手机微信只有"列表"和"聊天"两屏，没有左侧功能栏 */
   .wc-rail { display: none; }
 
   .wc-list {
@@ -808,19 +818,23 @@
 
   .wc-msg-body { max-width: 82%; }
 
+  /* 手机上正文降到 12px 太挤，保持 24px 但把气泡内边距收小 */
   .wc-bubble {
     border-width: 10px 10px 20px 10px;
-    font-size: 14.5px;
+    font-size: 24px;
   }
 
-  .wc-face { border-radius: 5px; }
-
   .wc-choice {
-    font-size: 14px;
-    padding: 10px 13px;
+    font-size: 24px;
+    padding: 9px 11px;
   }
 
   .wc-btn { width: 100%; }
 
-  .wc-head-hint { font-size: 11px; }
+  .wc-list-title,
+  .wc-head-name,
+  .wc-invite-title,
+  .wc-zhihu-title { font-size: 24px; }
+
+  .wc-head-hint { font-size: 12px; }
 }
