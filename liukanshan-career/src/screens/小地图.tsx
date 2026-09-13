@@ -1,71 +1,126 @@
 /**
  * 小地图。
  *
- * 右上角一块缩略图，点一下放大成大图（再点收起）。
- * 用 canvas 按**瓦片网格**直接画色块 —— 比截图便宜得多，也比贴图稳。
+ * 右上角一块缩略图，点一下放大（再点收起）。
  *
- * 性能：位置不走 React state，用 requestAnimationFrame 直接读 位置总线 再画，
- * 所以主角走动时不会触发整棵 React 树重渲染。
+ * 画法：**直接用真实的素材图**，不是色块 ——
+ *   · 建筑：把瓦片图（墙/门/玻璃/地毯…）按缩放画成缩略版，所以墙和门一眼能认出来
+ *   · 人物：用各角色自己的**头像**（`头像(谁)`），不是圆点
+ *   · 可交互点：小黄点
+ *
+ * 性能：主角位置不走 React state，用 requestAnimationFrame 直接读 位置总线 再画，
+ * 走起来不会触发整棵 React 树重渲染。
  */
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { 地图宽, 地图高, 网格, 瓦片, 交互点表, NPC表 } from '../game/map/level';
 import { 位置总线 } from '../game/map/位置总线';
+import { 头像 } from '../story/assets';
 import { 播放 } from '../story/audio';
 
-/** 每种瓦片在小地图上用什么颜色 */
-const 色表: Record<number, string> = {
-  [瓦片.浅灰地毯]: '#a8a29a',
-  [瓦片.深灰地毯]: '#6e7686',
-  [瓦片.防滑砖]: '#c9c1b4',
-  [瓦片.抛光砖]: '#454b57',
-  [瓦片.走廊地砖]: '#d8d2c8',
-  [瓦片.木地板]: '#b87b4a',
-  [瓦片.白墙]: '#e8dcc0',
-  [瓦片.玻璃]: '#8ec3ee',
-  [瓦片.门横]: '#f0c896',
-  [瓦片.门竖]: '#f0c896',
-  [瓦片.桌面]: '#f0c896',
+/** 瓦片编号 → 游戏里的瓦片文件名 */
+const 瓦片文件: Record<number, string> = {
+  [瓦片.浅灰地毯]: 'tile_carpet_grey',
+  [瓦片.深灰地毯]: 'tile_carpet_dark',
+  [瓦片.防滑砖]: 'tile_antislip',
+  [瓦片.抛光砖]: 'tile_polished',
+  [瓦片.走廊地砖]: 'tile_tile',
+  [瓦片.木地板]: 'tile_wood',
+  [瓦片.白墙]: 'tile_wall',
+  [瓦片.玻璃]: 'tile_glass',
+  [瓦片.门横]: 'tile_door_h',
+  [瓦片.门竖]: 'tile_door_v',
+  [瓦片.桌面]: 'tile_desk',
+  [瓦片.门横关]: 'tile_door_h_closed',
+  [瓦片.门竖关]: 'tile_door_v_closed',
 };
 
-/** 把整张地图画到一块 canvas 上（一格 = px 像素） */
-function 画地图(cv: HTMLCanvasElement, 格像素: number, 画玩家: boolean): void {
+const 图缓存 = new Map<string, HTMLImageElement>();
+
+function 取图(名: string): HTMLImageElement | null {
+  const 有 = 图缓存.get(名);
+  if (有) return 有.complete && 有.naturalWidth > 0 ? 有 : null;
+  const img = new Image();
+  img.src = new URL(`assets/map/${名}.png`, document.baseURI).href;
+  图缓存.set(名, img);
+  return null;
+}
+
+function 取头像(谁: string): HTMLImageElement | null {
+  const 键 = `face:${谁}`;
+  const 有 = 图缓存.get(键);
+  if (有) return 有.complete && 有.naturalWidth > 0 ? 有 : null;
+  const url = 头像(谁 as never);
+  if (!url) return null;
+  const img = new Image();
+  img.src = url;
+  图缓存.set(键, img);
+  return null;
+}
+
+/** 把小地图画到 canvas 上 */
+function 画地图(cv: HTMLCanvasElement, 格像素: number): void {
   const ctx = cv.getContext('2d');
   if (!ctx) return;
-  cv.width = 地图宽 * 格像素;
-  cv.height = 地图高 * 格像素;
+  const W = 地图宽 * 格像素;
+  const H = 地图高 * 格像素;
+  if (cv.width !== W || cv.height !== H) {
+    cv.width = W;
+    cv.height = H;
+  }
   ctx.imageSmoothingEnabled = false;
 
+  // ① 地面 + 建筑：直接画真实瓦片图的缩略版（墙/门/玻璃一眼能认出来）
   for (let y = 0; y < 地图高; y += 1) {
     for (let x = 0; x < 地图宽; x += 1) {
-      ctx.fillStyle = 色表[网格[y][x]] ?? '#000';
-      ctx.fillRect(x * 格像素, y * 格像素, 格像素, 格像素);
+      const 号 = 网格[y][x];
+      const 名 = 瓦片文件[号];
+      const img = 名 ? 取图(名) : null;
+      if (img) {
+        ctx.drawImage(img, x * 格像素, y * 格像素, 格像素, 格像素);
+      } else {
+        // 图还没加载好，先用底色顶着
+        ctx.fillStyle = '#a8a29a';
+        ctx.fillRect(x * 格像素, y * 格像素, 格像素, 格像素);
+      }
     }
   }
 
-  // 交互点：小黄点
+  // ② 可交互点：小黄点
   ctx.fillStyle = '#ffcb6b';
+  const d = Math.max(2, 格像素 * 0.4);
   for (const p of 交互点表) {
-    ctx.fillRect(p.x * 格像素, p.y * 格像素, 格像素, 格像素);
+    ctx.fillRect(p.x * 格像素 + 格像素 / 2 - d / 2, p.y * 格像素 + 格像素 / 2 - d / 2, d, d);
   }
 
-  // 同事：小红点
-  ctx.fillStyle = '#e04f3f';
+  // ③ 同事：用各自的头像
+  const 头尺寸 = Math.max(8, 格像素 * 2);
   for (const n of NPC表) {
-    ctx.fillRect(n.x * 格像素 + 格像素 * 0.25, n.y * 格像素, 格像素 * 0.5, 格像素 * 0.5);
+    const img = 取头像(n.名);
+    const cx = n.x * 格像素 + 格像素 / 2 - 头尺寸 / 2;
+    const cy = n.y * 格像素 + 格像素 / 2 - 头尺寸 / 2;
+    if (img) {
+      ctx.drawImage(img, cx, cy, 头尺寸, 头尺寸);
+    } else {
+      ctx.fillStyle = '#e04f3f';
+      ctx.fillRect(cx, cy, 头尺寸, 头尺寸);
+    }
   }
 
-  // 玩家：绿点（带一圈白边，尺寸大一点，一眼能找到）
-  if (画玩家 && 位置总线.就绪) {
+  // ④ 主角：刘看山的头像 + 一圈白边（一眼能找到自己）
+  if (位置总线.就绪) {
+    const img = 取头像('刘看山');
     const px = (位置总线.x / 32) * 格像素;
     const py = (位置总线.y / 32) * 格像素;
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(px, py, 格像素 * 1.5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#4a8f4f';
-    ctx.beginPath();
-    ctx.arc(px, py, 格像素 * 1.1, 0, Math.PI * 2);
-    ctx.fill();
+    const 自己尺寸 = 头尺寸 * 1.15;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = Math.max(2, 格像素 * 0.3);
+    ctx.strokeRect(px - 自己尺寸 / 2, py - 自己尺寸 / 2, 自己尺寸, 自己尺寸);
+    if (img) {
+      ctx.drawImage(img, px - 自己尺寸 / 2, py - 自己尺寸 / 2, 自己尺寸, 自己尺寸);
+    } else {
+      ctx.fillStyle = '#4a8f4f';
+      ctx.fillRect(px - 自己尺寸 / 2, py - 自己尺寸 / 2, 自己尺寸, 自己尺寸);
+    }
   }
 }
 
@@ -73,31 +128,22 @@ export function 小地图(): ReactElement {
   const 小 = useRef<HTMLCanvasElement>(null);
   const 大 = useRef<HTMLCanvasElement>(null);
   const [放大, set放大] = useState(false);
+  /** 素材加载完了就重画一次（不然第一帧都是底色）*/
+  const [, 催] = useState(0);
 
-  // 静态部分只画一次；玩家那一点每帧重画（很小一块，开销可以忽略）
+  // 素材是异步的，加载完踢一脚重画
   useEffect(() => {
-    const 小图 = 小.current;
-    if (小图) 画地图(小图, 3, false);
-    const 大图 = 大.current;
-    if (大图) 画地图(大图, 12, false);
-  }, [放大]);
+    const t = window.setInterval(() => 催((v) => v + 1), 400);
+    return () => window.clearInterval(t);
+  }, []);
 
   useEffect(() => {
     let 停 = 0;
     const 帧 = (): void => {
-      // 小地图：先清掉旧的玩家点再重画整张（小，3px/格，很快）
       const 小图 = 小.current;
-      if (小图) {
-        const ctx = 小图.getContext('2d');
-        if (ctx && 位置总线.就绪) {
-          画地图(小图, 3, true);
-        }
-      }
+      if (小图) 画地图(小图, 6);
       const 大图 = 大.current;
-      if (大图 && 放大) {
-        const ctx = 大图.getContext('2d');
-        if (ctx && 位置总线.就绪) 画地图(大图, 12, true);
-      }
+      if (大图 && 放大) 画地图(大图, 14);
       停 = window.requestAnimationFrame(帧);
     };
     停 = window.requestAnimationFrame(帧);
@@ -143,9 +189,13 @@ export function 小地图(): ReactElement {
             </header>
             <canvas ref={大} />
             <div className="map-mini-legend">
-              <span><i style={{ background: '#4a8f4f' }} />你</span>
-              <span><i style={{ background: '#e04f3f' }} />同事</span>
-              <span><i style={{ background: '#ffcb6b' }} />可交互</span>
+              <span>
+                <i style={{ background: '#ffffff', outline: '2px solid #4a8f4f' }} />你
+              </span>
+              <span>同事＝各自头像</span>
+              <span>
+                <i style={{ background: '#ffcb6b' }} />可交互
+              </span>
             </div>
           </div>
         </div>

@@ -504,17 +504,26 @@ export function Avg(): ReactElement {
   }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
 
   // 新消息滚到底
-  /* Tab：收起手机回地图（和地图上的 Tab 互为镜像） */
+  /* 键盘：Tab 收起手机回地图；空格和点聊天区一样推进 */
   useEffect(() => {
     const 键 = (e: KeyboardEvent): void => {
-      if (e.key !== 'Tab') return;
-      e.preventDefault();
-      播放('按钮');
-      回地图();
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        播放('按钮');
+        回地图();
+        return;
+      }
+      if (e.code === 'Space' || e.key === ' ') {
+        e.preventDefault();
+        // 和点聊天区等价：有选项/邀请/暂停时不推进（那些要点按钮）
+        const s = useStory.getState();
+        if (s.待选择 || s.待接受邀请 || s.待暂停) return;
+        推进一步();
+      }
     };
     window.addEventListener('keydown', 键);
     return () => window.removeEventListener('keydown', 键);
-  }, [回地图]);
+  }, [回地图, 推进一步]);
 
   useLayoutEffect(() => {
     const el = 消息区.current;
@@ -717,7 +726,7 @@ export function Avg(): ReactElement {
           ) : null}
 
           {!待选择 && !待接受邀请 && !待暂停 && !播完 ? (
-            <div className="wc-hint">点聊天区加速 ▸</div>
+            <div className="wc-hint">点聊天区或按空格加速 ▸</div>
           ) : null}
 
           {播完 ? <div className="wc-hint done">全部剧情播完了 —— 后面的事件还在写</div> : null}

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 地图模式样式。
  *
  * 布局原则：**四个角放常驻信息，底部中间放临时提示** —— 都不压地图中央，
@@ -270,15 +270,22 @@
 }
 
 /* 放大版：整屏遮罩 + 中间大图（一格 12px = 540×360） */
+/* ⚠️ 放大版必须用 fixed + flex 居中，而且**不能**放进任何有 transform 的祖先里
+   （有 transform 的祖先会变成 fixed 的包含块，遮罩就会跑到屏幕外面去 —— 实测踩过）。 */
 .map-mini-full {
   position: fixed;
-  inset: 0;
-  z-index: 40;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  background: rgba(20, 22, 28, 0.72);
-  animation: map-pop 0.18s ease-out both;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  box-sizing: border-box;
+  background: rgba(20, 22, 28, 0.78);
+  overflow: auto;
 }
 
 .map-mini-full-box {
