@@ -94,6 +94,24 @@ console.log('  按空格后：', JSON.stringify(s));
 断言(s.坐着 === true, '在工位上按空格 → **真的坐下了**（交互点没有把坐下顶掉）');
 断言(s.套 === 'back', `工位上用背面坐姿（实际 ${s.套}）`);
 
+console.log('\n=== ①b 用**真键盘**按空格也要能坐（不是只调 store）===\n');
+// ⚠️ 这一条是给"按空格没反应"报的 bug 兜底：页面上如果有按钮拿到焦点，
+//    浏览器的默认行为会把空格吃掉（还会顺带点那个按钮），必须早于它 preventDefault。
+await 站起来();
+await 站到(21, 4);
+await 页.evaluate(() => {
+  // 先把焦点抢到"微信"按钮上（最容易出问题的情形）
+  const b = document.querySelector('.map-phone');
+  if (b) b.focus();
+});
+await 页.keyboard.press('Space');
+await 等(350);
+s = await 读();
+console.log('  焦点在按钮上按空格：', JSON.stringify(s));
+断言(s.坐着 === true, '**真有焦点在按钮上时，按空格也能坐下**');
+断言(s.屏幕 === 'map', '没有被那个按钮的默认行为带跑（没跳去微信）');
+await 站起来();
+
 console.log('\n=== ② 坐着时按方向键 → 自动站起来 ===\n');
 await 页.keyboard.down('ArrowLeft');
 await 等(250);

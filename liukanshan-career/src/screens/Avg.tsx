@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -126,15 +126,38 @@ function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number
 /** 群头像拼不满 4 个时的兜底成员 */
 const 兜底成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
 
-/** 方形头像（带像素边框）。**可点**：点了弹人物卡，和地图上点同事是同一张卡。 */
-function 头({ 谁, 尺寸 = 40 }: { 谁: 说话人; 尺寸?: number }): ReactElement | null {
+/**
+ * 方形头像（带像素边框）。**可点**：点了弹人物卡，和地图上点同事是同一张卡。
+ *
+ * ⚠️ `静态` = true 时渲染成 `<span>` 而不是 `<button>`。
+ *    用在"外面已经是一个按钮"的地方（功能栏顶上那个"我的资料"按钮）——
+ *    HTML 不允许 `<button>` 套 `<button>`，React 会刷一屏
+ *    "In HTML, <button> cannot be a descendant of <button>" 的报错（用户报过）。
+ */
+function 头({
+  谁,
+  尺寸 = 40,
+  静态 = false,
+}: {
+  谁: 说话人;
+  尺寸?: number;
+  静态?: boolean;
+}): ReactElement | null {
   const 图 = 头像(谁);
   const 看人物 = useStory((s) => s.看人物);
   if (!图) return null;
+  const 样式 = { width: 尺寸, height: 尺寸 };
+  if (静态) {
+    return (
+      <span className="wc-face" style={样式} aria-hidden="true">
+        <img src={图} alt="" draggable={false} />
+      </span>
+    );
+  }
   return (
     <button
       className="wc-face"
-      style={{ width: 尺寸, height: 尺寸 }}
+      style={样式}
       onMouseEnter={() => 播放('选项悬停')}
       onClick={(e) => {
         e.stopPropagation();
@@ -176,7 +199,14 @@ function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; �
   }
   return (
     <button className={`wc-row${选中 ? ' on' : ''}`} {...按钮反馈(点)}>
-      {会话.类型 === '群聊' ? <群头 成员={会话.成员} /> : 会话.对方 ? <头 谁={会话.对方} /> : null}
+      {/* ⚠️ 会话行**整行就是按钮**，所以头像必须是静态的（`静态: true`）——
+          不然 button 套 button，React 会刷一屏 hydration 报错（用户报过）。
+          点整行本来就等于"打开这个会话"，头像不需要再单独可点。 */}
+      {会话.类型 === '群聊' ? (
+        <群头 成员={会话.成员} />
+      ) : 会话.对方 ? (
+        <头 谁={会话.对方} 静态 />
+      ) : null}
       <span className="wc-row-body">
         <span className="wc-row-name">{会话.名字}</span>
         <span className="wc-row-preview">{预览 || '　'}</span>
@@ -551,7 +581,7 @@ export function Avg(): ReactElement {
           title="我的资料"
           aria-label="打开我的资料卡"
         >
-          {头({ 谁: '刘看山', 尺寸: 36 })}
+          {头({ 谁: '刘看山', 尺寸: 36, 静态: true })}
         </button>
 
         <nav className="wc-rail-icons">

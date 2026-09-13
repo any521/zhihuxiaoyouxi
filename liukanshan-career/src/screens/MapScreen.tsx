@@ -238,7 +238,20 @@ export function MapScreen(): ReactElement {
       }
       if (e.code === 'Space' || e.key === ' ') {
         if (useStory.getState().屏幕 !== 'map') return;
+        // ⚠️⚠️ `preventDefault()` 必须**最先**调（用户报的 bug："按空格坐下没反应"）：
+        //    Space 是浏览器的"激活"键 —— 如果此刻焦点在某个 `<button>` 上
+        //    （右下角的"微信"很容易拿到焦点），浏览器会用空格去**点那个按钮**，
+        //    并且这个默认行为发生在 keydown 之后、比我们的逻辑更"优先"。
+        //    早于一切分支 preventDefault，才能保证空格是我们自己的键。
         e.preventDefault();
+        const s0 = 场景.current;
+        // 座位优先：脚下是椅子/沙发 → 空格就是"坐下 / 站起来"
+        // （不用等交互点 —— 空椅子那一格根本没有交互点，以前就什么都不发生）
+        if (s0 && useStory.getState().站在座位上) {
+          播放(useStory.getState().坐着 ? '按钮' : '选择确认', 0.5);
+          useStory.getState().要坐坐(useStory.getState().坐着 ? '站' : '坐');
+          return;
+        }
         // 门优先：站在门口时空格是开关门，不是交互
         // ⚠️ 这里读 ref 而不是 state —— keydown 的闭包是旧的，读 state 会拿到过期的值
         const 门 = 附近门ref.current;
