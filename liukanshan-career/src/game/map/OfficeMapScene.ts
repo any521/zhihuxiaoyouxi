@@ -189,9 +189,23 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角.x = 椅.x;
     // 往上抬到**这把椅子自己的座面高度**（每张座位记了 `偏移Y`，见 `level.ts`）
     this.主角.y = 椅.y + 近.座位.偏移Y;
-    this.主角.setDepth(this.主角.y);
+    this.主角.setDepth(this.坐姿深度(套, this.主角.y));
     this.回调?.坐姿变了?.(true);
     return true;
+  }
+
+  /**
+   * 坐着时的**渲染深度**。
+   *
+   * 用户要求：「正面坐人物动画显示在椅子**前面**」。
+   *   · **背面坐**（工位）：椅子**画在人前面**（`行底 + 2`）—— 椅背挡住下半身才对，
+   *     人拿着键盘的样子才成立；这时人本身不用抬太多（抬多会浮到桌子上面去）。
+   *   · **正面坐**（茶水间 / 会议室 / 沙发）：人**画在椅子前面**（`+40`）——
+   *     正面坐姿本来就是"从头到脚整个人"，被椅子盖住就只剩一个头，
+   *     所以我把它整体拎到椅子前面，看着就是"坐在那儿说话"。
+   */
+  private 坐姿深度(套: 'back' | 'front', 人y: number): number {
+    return 套 === 'front' ? 人y + 40 : 人y;
   }
 
   /**
@@ -687,7 +701,9 @@ export class OfficeMapScene extends Phaser.Scene {
         : this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
       if (能坐) s.anims.play(用正面 ? `坐正_${n.名}` : `坐_${n.名}`, true);
       s.setOrigin(0.5, 1);
-      s.setDepth(y);
+      // ⚠️ 正面坐的同事也**拎到椅子前面**（和主角同一条规则，见 `坐姿深度()`）——
+      //    不然整个人被椅子盖住、只剩一个头（用户要求"正面坐显示在椅子前面"）。
+      s.setDepth(能坐 && 用正面 ? y + 40 : y);
       // 名字挂在精灵上：靠过去弹人物卡时要按名字查人物卡库
       s.setData('名', n.名);
       // 同事也挡路（不能从人身上穿过去）
@@ -939,7 +955,10 @@ export class OfficeMapScene extends Phaser.Scene {
     报位置(this.主角.x, this.主角.y);
     this.脚下影.setPosition(影子.x, 影子.y);
     this.脚下影.setDepth(this.主角.y - 1);
-    this.主角.setDepth(this.主角.y);
+    // ⚠️⚠️ **坐着的时候不能无脑 `setDepth(y)`** —— 正面坐是要拎到椅子前面的
+    //    （`坐姿深度` 会给 +40），每帧覆盖回去就白设了（实测：坐下瞬间 700、
+    //    下一帧变回 660，椅子又把整个人盖住 —— 就是这么来的）。
+    this.主角.setDepth(this.坐的座位 ? this.坐姿深度(this.坐的座位.套, this.主角.y) : this.主角.y);
   }
 
   /** 按脚底 y 排深度，主角走到家具后面会被挡住 */
