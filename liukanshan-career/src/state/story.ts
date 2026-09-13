@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 开场与剧情的状态机。
  *
  * 设计：剧本是一条**扁平队列**，引擎每次 tick 取一条。
@@ -124,6 +124,12 @@ interface 剧情状态 {
   掏手机: () => void;
   /** 打开/关闭某个人的人物卡 */
   看人物: (谁: 说话人 | null) => void;
+  /** 地图上的设置弹层（Esc 打开）*/
+  设置开: boolean;
+  开关设置: (开?: boolean) => void;
+  /** 主角在地图上的位置（换屏幕时记下来，回来还在原地，不回默认出生点）*/
+  地图位置: { x: number; y: number } | null;
+  记地图位置: (p: { x: number; y: number }) => void;
 }
 
 let 条目序号 = 0;
@@ -164,6 +170,8 @@ function 初始() {
     地图目标: null,
     支线中: false,
     看谁: null,
+    设置开: false,
+    地图位置: null,
     待接受邀请: null,
     待选择: null,
     待暂停: null,
@@ -421,7 +429,6 @@ export const useStory = create<剧情状态>((set, get) => ({
         待暂停: null,
         播完: false,
         支线中: false,
-    看谁: null,
         地图目标: null,
         附近交互点: null,
         搜索开: false,
@@ -448,6 +455,10 @@ export const useStory = create<剧情状态>((set, get) => ({
   回地图: () => set({ 屏幕: 'map', 附近交互点: null, 搜索开: false }),
 
   看人物: (谁) => set({ 看谁: 谁 }),
+
+  开关设置: (开) => set((s) => ({ 设置开: 开 ?? !s.设置开 })),
+
+  记地图位置: (p) => set({ 地图位置: p }),
 
   掏手机: () => set({ 屏幕: 'avg', 搜索开: false }),
 

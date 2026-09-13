@@ -83,11 +83,24 @@ export class OfficeMapScene extends Phaser.Scene {
     this.目标 = id ? 交互点表.find((p) => p.id === id) : undefined;
   }
 
-  /** 调试用：把主角直接挪到某个瓦片坐标（自动化测试走近交互点太慢） */
-  传送(x: number, y: number): void {
-    const p = this.格到像素(x, y);
+  /** 调试用：把主角直接挪到某个**瓦片坐标**（自动化测试走近交互点太慢） */
+  传送(格x: number, 格y: number): void {
+    const p = this.格到像素(格x, 格y);
     this.主角.setPosition(p.x, p.y);
     this.主角.body?.reset(p.x, p.y);
+  }
+
+  /**
+   * 按**像素坐标**传送。
+   * ⚠️ 和 传送() 的区别很重要：位置记忆存的是 精确位置() 的像素值，
+   *    要是拿像素值去调 传送()（那个收的是瓦片坐标），会被算到地图外面、
+   *    然后被世界边界夹到角落 —— 实测就是这么错的。
+   */
+  传送像素(px: number, py: number): void {
+    const x = Phaser.Math.Clamp(px, 格, 图宽 - 格);
+    const y = Phaser.Math.Clamp(py, 格, 图高 - 格);
+    this.主角.setPosition(x, y);
+    this.主角.body?.reset(x, y);
   }
 
   /** 调试用：读主角当前所在瓦片（用 floor —— round 会把"刚好停在物体边缘"读成下一格，误导判断）*/

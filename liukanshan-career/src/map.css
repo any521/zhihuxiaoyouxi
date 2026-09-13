@@ -1,11 +1,11 @@
 /**
  * 地图模式样式。
  *
- * 和 AVG 保持同一套视觉语言：米白 + 绿、统一的按钮反馈、
- * 文字用同一条像素字体栈（在 screens.css 的 .pixel 里统一声明）。
+ * 布局原则：**四个角放常驻信息，底部中间放临时提示** —— 都不压地图中央，
+ * 因为玩家要看的是中间那个人。
  *
- * Phaser 画布内部固定 512×288（或竖屏 288×512），
- * 这里用 CSS 把它**整数倍**放大铺满窗口 —— 非整数倍会让像素糊掉。
+ * 满屏靠"内部分辨率 × 整数倍"实现（见 MapScreen 的 算尺寸），
+ * CSS 只是把画布设成算好的那个精确尺寸，不做任何非整数拉伸。
  */
 
 .map-wrap {
@@ -18,7 +18,7 @@
   font-smooth: never;
 }
 
-/* 画布：整数放大，居中 */
+/* 画布：尺寸由 JS 算好（内部分辨率 × 整数倍），正好铺满窗口 */
 .map-canvas {
   position: absolute;
   inset: 0;
@@ -27,119 +27,62 @@
 }
 
 .map-canvas canvas {
-  /* 由 JS 每帧算出的 --map-scale 控制整数倍 */
-  image-rendering: pixelated;
   display: block;
-  width: calc(512px * var(--map-scale, 2));
-  height: calc(288px * var(--map-scale, 2));
+  image-rendering: pixelated;
+  width: var(--map-w, 100%);
+  height: var(--map-h, 100%);
 }
 
-/* 竖屏时按 288×512 放 */
-@media (orientation: portrait) and (max-width: 720px) {
-  .map-canvas canvas {
-    width: calc(288px * var(--map-scale, 2));
-    height: calc(512px * var(--map-scale, 2));
-  }
-}
+/* ───────── 四角常驻信息 ───────── */
 
-/* ───────── 覆盖层 ───────── */
-
-.map-hud {
-  position: absolute;
-  left: 16px;
-  top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  pointer-events: none;
-}
-
+/* 左上：第几天 */
 .map-day {
-  align-self: flex-start;
+  position: absolute;
+  left: 14px;
+  top: 12px;
+  padding: 5px 14px;
   font-size: 12px;
+  letter-spacing: 0.08em;
   color: #f7efdd;
   background: rgba(47, 93, 58, 0.92);
   border: 2px solid #a8d98a;
-  padding: 5px 12px;
+  pointer-events: none;
 }
 
-.map-tip {
-  font-size: 12px;
-  color: #e8dcc0;
-  background: rgba(20, 22, 28, 0.72);
-  padding: 4px 10px;
-}
-
-/* 靠近交互点时的提示条 */
-.map-prompt {
+/* 左下：操作说明（压暗，不抢眼） */
+.map-keys {
   position: absolute;
-  left: 50%;
-  bottom: 26px;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 16px;
+  left: 14px;
+  bottom: 12px;
+  padding: 5px 12px;
   font-size: 12px;
-  color: #f7efdd;
-  background: rgba(20, 22, 28, 0.88);
-  border: 2px solid rgba(247, 239, 221, 0.35);
-  animation: map-pop 0.16s ease-out both;
+  color: #cbbfa6;
+  background: rgba(20, 22, 28, 0.68);
+  border: 1px solid rgba(247, 239, 221, 0.18);
+  pointer-events: none;
 }
 
-.map-prompt b {
-  font-size: 24px;
+.map-keys b {
   font-weight: normal;
-  color: #fff;
+  color: #f7efdd;
 }
 
-/* 主线入口用绿色的强调条 */
-.map-prompt.main {
-  border-color: #7cc26b;
-  background: rgba(47, 93, 58, 0.94);
-  box-shadow: 0 0 0 2px rgba(168, 217, 138, 0.25);
-}
-
-.map-prompt-key {
-  font-size: 12px;
-  color: #241a12;
-  background: #a8d98a;
-  border: 2px solid #2f5d3a;
-  padding: 3px 9px;
-}
-
-.map-prompt-act {
-  color: #d8cbb4;
-}
-
-.map-prompt-star {
-  font-size: 12px;
-  color: #241a12;
-  background: #ffcb6b;
-  padding: 2px 8px;
-}
-
-@keyframes map-pop {
-  from { opacity: 0; transform: translate(-50%, 6px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
-}
-
-/* 右上角：掏手机 */
+/* 右下：掏手机 */
 .map-phone {
   position: absolute;
-  right: 16px;
-  top: 14px;
+  right: 14px;
+  bottom: 12px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  padding: 9px 14px;
   font-family: inherit;
   font-size: 24px;
   color: #f7efdd;
   background: rgba(47, 93, 58, 0.94);
   border: 2px solid #a8d98a;
   cursor: pointer;
-  transition: transform 0.09s ease-out, background 0.14s, border-color 0.14s;
+  transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s;
 }
 
 .map-phone:hover {
@@ -170,28 +113,124 @@
   padding: 2px 6px;
 }
 
+/* 右下角（微信按钮上方）：设置齿轮 */
+.map-gear {
+  position: absolute;
+  right: 14px;
+  bottom: 68px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-family: inherit;
+  font-size: 24px;
+  color: #f7efdd;
+  background: rgba(20, 22, 28, 0.82);
+  border: 2px solid rgba(247, 239, 221, 0.35);
+  cursor: pointer;
+  transition: transform 0.09s ease-out, background-color 0.14s, border-color 0.14s;
+}
+
+.map-gear:hover {
+  background: rgba(47, 93, 58, 0.95);
+  border-color: #a8d98a;
+}
+
+.map-gear:active {
+  transform: translateY(2px);
+}
+
+.map-gear:focus-visible {
+  outline: 3px solid #a8d98a;
+  outline-offset: 2px;
+}
+
+/* ───────── 底部中间：临时提示 ───────── */
+
+.map-prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  font-size: 12px;
+  color: #f7efdd;
+  background: rgba(20, 22, 28, 0.9);
+  border: 2px solid rgba(247, 239, 221, 0.35);
+  animation: map-pop 0.16s ease-out both;
+  pointer-events: none;
+}
+
+.map-prompt b {
+  font-size: 24px;
+  font-weight: normal;
+  color: #fff;
+}
+
+.map-prompt.main {
+  border-color: #7cc26b;
+  background: rgba(47, 93, 58, 0.95);
+  box-shadow: 0 0 0 2px rgba(168, 217, 138, 0.25);
+}
+
+.map-prompt-key {
+  font-size: 12px;
+  color: #241a12;
+  background: #a8d98a;
+  border: 2px solid #2f5d3a;
+  padding: 3px 9px;
+}
+
+.map-prompt-act {
+  color: #d8cbb4;
+}
+
+.map-prompt-star {
+  font-size: 12px;
+  color: #241a12;
+  background: #ffcb6b;
+  padding: 2px 8px;
+}
+
+@keyframes map-pop {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
 /* ───────── 手机 ───────── */
 
 @media (max-width: 720px) {
-  .map-hud {
+  /* 手机上没键盘：操作说明换成触屏提示 */
+  .map-keys {
     left: 10px;
-    top: 10px;
-    max-width: calc(100% - 120px);
+    bottom: 10px;
+    font-size: 12px;
   }
 
-  .map-tip {
-    display: none; /* 手机上没键盘，说明没意义 */
+  .map-day {
+    left: 10px;
+    top: 10px;
   }
 
   .map-phone {
     right: 10px;
-    top: 10px;
+    bottom: 10px;
+    font-size: 24px;
+  }
+
+  .map-gear {
+    right: 10px;
+    bottom: 62px;
   }
 
   .map-prompt {
-    bottom: 18px;
+    bottom: 64px;
+    max-width: calc(100% - 20px);
     flex-wrap: wrap;
     justify-content: center;
-    max-width: calc(100% - 24px);
   }
 }

@@ -1,26 +1,50 @@
 ﻿/**
  * 地图模式的 React 外壳。
  *
- * 分工：Phaser 只画像素（瓦片/道具/角色），**文字一律 DOM** ——
- * 中文字号小的时候 Phaser 里会糊，这是全局约定。
+ * 分工：Phaser 只画像素（瓦片/道具/角色），**文字一律 DOM**。
  *
- * 双向通信：
- *   React → Phaser  设回调（附近变了 / 交互了）、设目标（指引线指向哪）
- *   Phaser → React  附近变了 → 写进 store → 这里渲染提示条
+ * 【满屏又不糊的做法】
+ * 直接拉伸画布会让像素发虚，所以反过来做：**按窗口算内部分辨率**，
+ * 让"窗口尺寸 = 内部分辨率 × 整数倍"精确成立。
+ *   1440×900  →  倍率 3  →  内部 480×300  →  3× = 1440×900 ✅ 满屏且整数倍
+ *   1920×1080 →  倍率 4  →  内部 480×270  →  4× = 1920×1080 ✅
+ * 这样既没有黑边，也不会出现非整数缩放的发虚。
+ *
+ * 【按键】
+ *   方向键 / WASD  走动（Shift 跑）
+ *   空格           交互
+ *   Tab            掏出手机（微信）/ 再按回地图
+ *   Esc            设置
+ *
+ * 【位置记忆】切到微信时把主角坐标记进 store，回来时传送回去 —— 不会回到出生点。
  */
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 import Phaser from 'phaser';
 import { OfficeMapScene } from '../game/map/OfficeMapScene';
 import { 交互点表 } from '../game/map/level';
-import { 人物卡 } from './Panels';
+import { 人物卡, 设置弹层 } from './Panels';
 import { useStory } from '../state/story';
 import { 播放 } from '../story/audio';
-import { VIEW_H, VIEW_W } from '../game/viewport';
+
+/** 按窗口算"内部分辨率 × 整数倍" */
+function 算尺寸(): { 倍: number; 内宽: number; 内高: number } {
+  const W = Math.max(320, window.innerWidth);
+  const H = Math.max(240, window.innerHeight);
+  const 竖 = H > W;
+  const 目标宽 = 竖 ? 288 : 480;
+  const 目标高 = 竖 ? 480 : 288;
+  // 取最接近的整数倍；竖屏至少 2 倍，否则内部像素太多、视野太广
+  let 倍 = Math.round(Math.min(W / 目标宽, H / 目标高));
+  if (竖) 倍 = Math.max(2, 倍);
+  倍 = Math.max(1, 倍);
+  return { 倍, 内宽: Math.ceil(W / 倍), 内高: Math.ceil(H / 倍) };
+}
 
 export function MapScreen(): ReactElement {
   const 挂载 = useRef<HTMLDivElement>(null);
   const 场景 = useRef<OfficeMapScene | null>(null);
   const 游戏 = useRef<Phaser.Game | null>(null);
+  const [尺寸, set尺寸] = useState(算尺寸);
   const [就绪, set就绪] = useState(false);
 
   const 附近 = useStory((s) => s.附近交互点);
@@ -28,27 +52,40 @@ export function MapScreen(): ReactElement {
   const 设附近 = useStory((s) => s.设附近);
   const 地图交互 = useStory((s) => s.地图交互);
   const 掏手机 = useStory((s) => s.掏手机);
-  const 看人物 = useStory((s) => s.看人物);
   const 段标签 = useStory((s) => s.段标签);
   const 段号 = useStory((s) => s.段号);
+  const 看人物 = useStory((s) => s.看人物);
+  const 开关设置 = useStory((s) => s.开关设置);
 
-  /* ── 启动 Phaser（只启动一次）── */
+  /* ── 窗口尺寸变了就重算（保持整数倍满屏）── */
+  useEffect(() => {
+    const 算 = (): void => set尺寸(算尺寸());
+    window.addEventListener('resize', 算);
+    window.addEventListener('orientationchange', 算);
+    return () => {
+      window.removeEventListener('resize', 算);
+      window.removeEventListener('orientationchange', 算);
+    };
+  }, []);
+
+  /* ── 启动 Phaser（只启动一次，用首次算出的尺寸）── */
   useEffect(() => {
     if (!挂载.current || 游戏.current) return;
+    const 初 = 算尺寸();
 
     const g = new Phaser.Game({
       type: Phaser.WEBGL,
       parent: 挂载.current,
-      width: VIEW_W,
-      height: VIEW_H,
+      width: 初.内宽,
+      height: 初.内高,
       backgroundColor: '#262a33',
       pixelArt: true,
       roundPixels: true,
       scale: {
         mode: Phaser.Scale.NONE,
         autoCenter: Phaser.Scale.NO_CENTER,
-        width: VIEW_W,
-        height: VIEW_H,
+        width: 初.内宽,
+        height: 初.内高,
       },
       physics: {
         default: 'arcade',
@@ -58,7 +95,7 @@ export function MapScreen(): ReactElement {
     });
     游戏.current = g;
 
-    // ⚠️ 不用 Phaser 的 ready 事件（时序不稳），改成轮询等场景建好
+    // 不用 Phaser 的 ready 事件（时序不稳），轮询等场景建好
     let 次 = 0;
     const 试探 = window.setInterval(() => {
       次 += 1;
@@ -72,33 +109,43 @@ export function MapScreen(): ReactElement {
             播放('按钮');
             地图交互(点.id);
           },
-          // 点地图上的同事 → 弹人物卡
           点人物: (名) => {
             播放('选项悬停');
             看人物(名 as never);
           },
         });
+        // 回到记忆中的位置（切去微信再回来不会重置到出生点）
+        const 记 = useStory.getState().地图位置;
+        if (记) s.传送像素(记.x, 记.y);
         set就绪(true);
-        // DEV：暴露场景，方便自动化测试（把主角挪到某处验证交互）
         if (import.meta.env.DEV) {
           (window as unknown as Record<string, unknown>).__lksMap = s;
         }
-      } else if (次 > 80) {
+      } else if (次 > 120) {
         window.clearInterval(试探);
       }
-    }, 60);
+    }, 50);
 
     return () => {
       window.clearInterval(试探);
+      // 卸载前记下主角位置，回来还在原地
+      const s = 场景.current;
+      if (s) useStory.getState().记地图位置(s.精确位置());
       g.destroy(true);
       游戏.current = null;
       场景.current = null;
     };
-    // 只跑一次；回调内部通过 store 的稳定引用取最新状态
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ── 目标变了：告诉场景，指引线改指向 ── */
+  /* ── 尺寸变了：重设内部分辨率 ── */
+  useEffect(() => {
+    const g = 游戏.current;
+    if (!g) return;
+    g.scale.resize(尺寸.内宽, 尺寸.内高);
+  }, [尺寸]);
+
+  /* ── 目标变了：指引线改指向 ── */
   useEffect(() => {
     if (!就绪) return;
     场景.current?.设目标(目标id);
@@ -110,15 +157,21 @@ export function MapScreen(): ReactElement {
     场景.current?.换NPC(段号);
   }, [段号, 就绪]);
 
-  /* ── 键盘：空格交互、Esc 掏手机 ──
-     两个键都在 React 层判，不在 Phaser 里判：
-     Phaser 的键盘监听依赖画布焦点，实测不可靠，而这里已经有 附近交互点 这个状态。 */
-  useEffect(() => {
-    const 键 = (e: KeyboardEvent): void => {
+  /* ── 键盘：Tab 掏手机 / Esc 设置 / 空格 交互 ── */
+  const 按键 = useCallback(
+    (e: KeyboardEvent): void => {
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        播放('按钮');
+        const s = 场景.current;
+        if (s) useStory.getState().记地图位置(s.精确位置());
+        掏手机();
+        return;
+      }
       if (e.key === 'Escape') {
         e.preventDefault();
         播放('按钮');
-        掏手机();
+        开关设置();
         return;
       }
       if (e.code === 'Space' || e.key === ' ') {
@@ -129,47 +182,49 @@ export function MapScreen(): ReactElement {
           地图交互(id);
         }
       }
-    };
-    window.addEventListener('keydown', 键);
-    return () => window.removeEventListener('keydown', 键);
-  }, [掏手机, 地图交互]);
+    },
+    [掏手机, 开关设置, 地图交互],
+  );
 
-  /* ── 整数倍缩放：非整数倍会让像素糊掉 ── */
-  const 外层 = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const 算 = (): void => {
-      const el = 外层.current;
-      if (!el) return;
-      const 竖 = window.innerHeight > window.innerWidth;
-      const 内宽 = 竖 ? 288 : 512;
-      const 内高 = 竖 ? 512 : 288;
-      const 倍 = Math.max(1, Math.floor(Math.min(window.innerWidth / 内宽, window.innerHeight / 内高)));
-      el.style.setProperty('--map-scale', String(倍));
-    };
-    算();
-    window.addEventListener('resize', 算);
-    window.addEventListener('orientationchange', 算);
-    return () => {
-      window.removeEventListener('resize', 算);
-      window.removeEventListener('orientationchange', 算);
-    };
-  }, []);
+    window.addEventListener('keydown', 按键);
+    return () => window.removeEventListener('keydown', 按键);
+  }, [按键]);
 
   const 附近点 = 附近 ? 交互点表.find((p) => p.id === 附近) : null;
   const 是主线 = 目标id !== null && 附近点?.id === 目标id;
 
-  return (
-    <div className="map-wrap" ref={外层}>
-      {/* Phaser 画布容器：内部固定 512×288，整数放大由 CSS 控制 */}
-      <div className="map-canvas" ref={挂载} />
+  /** 记位置再切去微信 */
+  const 去微信 = (): void => {
+    播放('按钮');
+    const s = 场景.current;
+    if (s) useStory.getState().记地图位置(s.精确位置());
+    掏手机();
+  };
 
-      {/* 左上：当前进度 + 操作说明 */}
-      <div className="map-hud">
-        <span className="map-day">{段标签}</span>
-        <span className="map-tip">方向键或 WASD 走动 · Shift 跑 · 空格交互 · Esc 掏手机</span>
+  return (
+    <div className="map-wrap">
+      {/* Phaser 画布：内部尺寸 = 内宽×内高，CSS 放大整数倍，正好铺满窗口 */}
+      <div
+        className="map-canvas"
+        ref={挂载}
+        style={
+          {
+            '--map-w': `${尺寸.内宽 * 尺寸.倍}px`,
+            '--map-h': `${尺寸.内高 * 尺寸.倍}px`,
+          } as React.CSSProperties
+        }
+      />
+
+      {/* 左上：天数（小徽章） */}
+      <div className="map-day">{段标签}</div>
+
+      {/* 左下：操作说明 */}
+      <div className="map-keys">
+        <b>方向键</b> 走动 · <b>Shift</b> 跑 · <b>空格</b> 交互 · <b>Tab</b> 微信 · <b>Esc</b> 设置
       </div>
 
-      {/* 底部中间：靠近交互点时出现 */}
+      {/* 底部中间：靠近交互点时的提示 */}
       {附近点 ? (
         <div className={`map-prompt${是主线 ? ' main' : ''}`}>
           <b>{附近点.名}</b>
@@ -179,23 +234,31 @@ export function MapScreen(): ReactElement {
         </div>
       ) : null}
 
-      {/* 右上：掏手机看消息 */}
+      {/* 右下：掏手机 */}
+      <button className="map-phone" onMouseEnter={() => 播放('选项悬停')} onClick={去微信} title="掏出手机（Tab）">
+        <span className="map-phone-dot" />
+        微信
+        <span className="map-phone-key">Tab</span>
+      </button>
+
+      {/* 右下角：设置 */}
       <button
-        className="map-phone"
+        className="map-gear"
         onMouseEnter={() => 播放('选项悬停')}
         onClick={() => {
           播放('按钮');
-          掏手机();
+          开关设置();
         }}
-        title="掏出手机（Esc）"
+        title="设置（Esc）"
+        aria-label="设置"
       >
-        <span className="map-phone-dot" />
-        微信
-        <span className="map-phone-key">Esc</span>
+        ⚙
       </button>
 
       {/* 点地图上的同事弹出来的人物卡 */}
       <人物卡 />
+      {/* Esc 打开的设置 */}
+      <设置弹层 />
     </div>
   );
 }

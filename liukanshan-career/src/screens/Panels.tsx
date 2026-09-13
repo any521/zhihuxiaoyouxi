@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 左侧功能栏的四个面板 + 个人资料卡。
  *
  * 设计原则：这些面板要**和剧情互补但不打断剧情**——
@@ -438,6 +438,35 @@ export function 人物卡(): ReactElement | null {
           ) : (
             <div className="pn-note">{谁} 目前只在群里说话，还没有私聊。</div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 设置弹层：地图上按 Esc 打开。
+ * 内容直接用设置面板那份，不另写一遍。
+ */
+export function 设置弹层(): ReactElement | null {
+  const 开 = useStory((s) => s.设置开);
+  const 开关设置 = useStory((s) => s.开关设置);
+  if (!开) return null;
+  const 关 = (): void => {
+    播放('按钮');
+    开关设置(false);
+  };
+  return (
+    <div className="pn-modal" onClick={关}>
+      <div className="pn-modal-box" onClick={(e) => e.stopPropagation()}>
+        <header className="pn-head">
+          <h2 className="pn-title">设置</h2>
+          <button className="pn-close" onMouseEnter={() => 播放('选项悬停')} onClick={关}>
+            关闭
+          </button>
+        </header>
+        <div className="pn-body">
+          <设置内容 />
         </div>
       </div>
     </div>

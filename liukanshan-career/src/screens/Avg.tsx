@@ -473,6 +473,7 @@ export function Avg(): ReactElement {
   const 侧栏面板 = useStory((s) => s.侧栏面板);
   const 切面板 = useStory((s) => s.切面板);
   const 开关资料卡 = useStory((s) => s.开关资料卡);
+  const 回地图 = useStory((s) => s.回地图);
   const 搜索开 = useStory((s) => s.搜索开);
   const 搜索词 = useStory((s) => s.搜索词);
   const 开搜索 = useStory((s) => s.开搜索);
@@ -503,6 +504,18 @@ export function Avg(): ReactElement {
   }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 推进一步, 速度]);
 
   // 新消息滚到底
+  /* Tab：收起手机回地图（和地图上的 Tab 互为镜像） */
+  useEffect(() => {
+    const 键 = (e: KeyboardEvent): void => {
+      if (e.key !== 'Tab') return;
+      e.preventDefault();
+      播放('按钮');
+      回地图();
+    };
+    window.addEventListener('keydown', 键);
+    return () => window.removeEventListener('keydown', 键);
+  }, [回地图]);
+
   useLayoutEffect(() => {
     const el = 消息区.current;
     if (el) el.scrollTop = el.scrollHeight;
