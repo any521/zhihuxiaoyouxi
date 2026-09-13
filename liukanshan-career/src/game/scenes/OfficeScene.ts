@@ -1,4 +1,4 @@
-import Phaser from 'phaser';
+﻿import Phaser from 'phaser';
 import { 图, 素材清单 } from '../assets';
 import { VIEWPORT } from '../viewport';
 import { bus, CMD } from '../../state/bus';
@@ -205,7 +205,7 @@ export class OfficeScene extends Phaser.Scene {
     const ctx = cv.getContext('2d');
     if (!ctx) return;
     ctx.imageSmoothingEnabled = false;
-    const 顺序 = [图.地板, 图.隔板墙, 图.办公墙, 图.木地板];
+    const 顺序 = [图.地面_地毯, 图.墙_白墙, 图.墙_玻璃, 图.地面_木地板];
     顺序.forEach((key, i) => {
       const 源 = this.textures.get(key).getSourceImage() as CanvasImageSource;
       ctx.drawImage(源, i * TILE, 0, TILE, TILE);

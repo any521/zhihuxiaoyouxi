@@ -8,15 +8,24 @@ const DANGER := Color("#fb6b6b")
 const MINT := Color("#30d48a")
 
 var player_x := 0.5
-var time_left := 60.0
+var time_left := 90.0
 var progress := 0.0
 var hits := 0
 var done := false
+var extra_files := 0
 var obstacles: Array = []
 var damage_flash_time := 0.0
 var status_label: Label
 var countdown_label: Label
 var progress_label: Label
+
+
+## 开局条件由事件 8 的固定选项决定（见 STORY_BIBLE §6.8）：可用时间与桌面干扰文件数。
+func configure(seconds: float, distractors: int) -> void:
+	time_left = seconds
+	extra_files = maxi(0, distractors)
+	obstacles.clear()
+	spawn_obstacles()
 
 
 func _ready() -> void:
@@ -91,12 +100,12 @@ func build_overlay() -> void:
 
 func spawn_obstacles() -> void:
 	var pattern := [0.2, 0.68, 0.42, 0.78, 0.28, 0.58]
-	for i in range(pattern.size()):
+	for i in range(pattern.size() + extra_files):
 		obstacles.append({
-			"x": float(pattern[i]),
+			"x": float(pattern[i % pattern.size()]),
 			"y": 180.0 + float(i) * 92.0,
 			"speed": 115.0 + float((i % 3) * 16),
-			"kind": ["车", "伞", "人"][i % 3]
+			"kind": ["件", "伞", "人"][i % 3]
 		})
 
 

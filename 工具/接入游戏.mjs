@@ -18,10 +18,10 @@ const 映射 = [
   ['背景/招聘会_竖版.png', 'bg/jobfair_port.png'],
 
   // 瓦片：关卡地面与墙体（无缝，可平铺）
-  ['瓦片/地板/地毯冷蓝.png', 'tile/floor_carpet.png'],
-  ['瓦片/地板/木地板.png', 'tile/floor_wood.png'],
-  ['瓦片/墙面/展会隔板.png', 'tile/wall_booth.png'],
-  ['瓦片/墙面/办公墙.png', 'tile/wall_office.png'],
+  ['瓦片v2/瓦片_地面_办公地毯.png', 'tile/floor_carpet.png'],
+  ['瓦片v2/瓦片_地面_木地板.png', 'tile/floor_wood.png'],
+  ['瓦片v2/瓦片_墙面_办公白墙.png', 'tile/wall_plain.png'],
+  ['瓦片v2/瓦片_墙面_玻璃隔断.png', 'tile/wall_glass.png'],
 
   // 主角：四视图 + 行走 4 帧
   ['角色/刘看山_三视图/正面.png', 'chr/lks_front.png'],

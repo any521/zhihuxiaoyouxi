@@ -8,7 +8,7 @@ export default function handler(req: ApiRequest, res: ApiResponse): void {
   const eventId = typeof body.eventId === "string" ? body.eventId : "";
   const actionId = typeof body.actionId === "string" ? body.actionId : "";
   const event = getStoryEvent(eventId);
-  const action = event?.actions.find((item) => item.id === actionId);
+  const action = event?.actions?.find((item) => item.id === actionId);
   if (!event || !action) return json(res, 400, { error: "INVALID_ACTION" });
   // The client owns its local save; this endpoint only validates the immutable route.
   json(res, 200, { eventId, actionId, scores: action.scores, isMinigame: Boolean(event.isMinigame) });

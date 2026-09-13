@@ -1,4 +1,4 @@
-import { VIEWPORT } from './viewport';
+﻿import { VIEWPORT } from './viewport';
 
 /** public/ 下的路径 → 绝对 URL（兼容部署到子路径的情况） */
 const 路径 = (相对: string): string => new URL(`assets/${相对}`, document.baseURI).href;
@@ -7,10 +7,10 @@ const 路径 = (相对: string): string => new URL(`assets/${相对}`, document.
 void VIEWPORT;
 
 export const 图 = {
-  地板: 'tile_floor_carpet',
-  木地板: 'tile_floor_wood',
-  隔板墙: 'tile_wall_booth',
-  办公墙: 'tile_wall_office',
+  地面_地毯: 'tile_floor_carpet',
+  地面_木地板: 'tile_floor_wood',
+  墙_白墙: 'tile_wall_plain',
+  墙_玻璃: 'tile_wall_glass',
   瓦片集: 'tileset',
 
   主角_正面: 'chr_lks_front',
@@ -45,10 +45,10 @@ export const 图 = {
 
 /** 本 demo 需要加载的素材：[缓存 key, 路径] */
 export const 素材清单: Array<[string, string]> = [
-  [图.地板, 路径('tile/floor_carpet.png')],
-  [图.木地板, 路径('tile/floor_wood.png')],
-  [图.隔板墙, 路径('tile/wall_booth.png')],
-  [图.办公墙, 路径('tile/wall_office.png')],
+  [图.地面_地毯, 路径('tile/floor_carpet.png')],
+  [图.地面_木地板, 路径('tile/floor_wood.png')],
+  [图.墙_白墙, 路径('tile/wall_plain.png')],
+  [图.墙_玻璃, 路径('tile/wall_glass.png')],
 
   [图.主角_正面, 路径('chr/lks_front.png')],
   [图.主角_侧面, 路径('chr/lks_side.png')],
