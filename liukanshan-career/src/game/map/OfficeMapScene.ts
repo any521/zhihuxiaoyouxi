@@ -79,6 +79,11 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 地图上所有门的位置（开局从网格里扫出来） */
   private 门们: Array<{ x: number; y: number }> = [];
   private 当前附近门: { x: number; y: number; 开: boolean } | null = null;
+  /** 通行表缓存（门一开关就置空重算）*/
+  private 通行表: Uint8Array | null = null;
+  /** 路径缓存：主角换格或目标变了才重算 */
+  private 路缓存: Array<{ x: number; y: number }> | null = null;
+  private 路缓存键 = '';
   private 朝向 = 0;
   private 目标 = 交互点表[0] as 交互点 | undefined;
 
@@ -122,6 +127,8 @@ export class OfficeMapScene extends Phaser.Scene {
     if (旧 === undefined) return;
     const 新 = 门配对[旧];
     if (新 === undefined) return;
+    this.通行表 = null; // 门的状态变了，通行表要重算
+    this.路缓存键 = '';
     this.改门格(x, y, 新);
     const 偏 = 门另一半[旧];
     if (!偏) return;
@@ -603,31 +610,167 @@ export class OfficeMapScene extends Phaser.Scene {
     //    （见 MapScreen：那边已经有 附近交互点 这个状态，判起来更直接）。
   }
 
-  /** 指引线：从主角脚下拉一条流动虚线到目标点 */
+  /**
+   * 通行表：每格能不能走（墙 / 玻璃 / 关着的门 → 不能走）。
+   * 门一开关就要重算，所以缓存在字段里，`开关门()` 里置空。
+   */
+  private 造通行表(): Uint8Array {
+    const t = new Uint8Array(地图宽 * 地图高);
+    for (let y = 0; y < 地图高; y += 1) {
+      for (let x = 0; x < 地图宽; x += 1) {
+        t[y * 地图宽 + x] = 挡路瓦片.includes(网格[y][x]) ? 0 : 1;
+      }
+    }
+    return t;
+  }
+
+  private 取通行表(): Uint8Array {
+    if (!this.通行表) this.通行表 = this.造通行表();
+    return this.通行表;
+  }
+
+  /**
+   * A* 找路（四方向）。
+   *
+   * ⚠️ 为什么必须寻路而不是拉直线：直线会**直接穿过墙**，
+   *    玩家看到的是"指引线从墙里穿过去"，完全没法照着走。
+   *
+   * 地图只有 45×30 = 1350 格，很小，A* 跑一次是微秒级。
+   * 但仍然**做了缓存**：只有主角换了格子或目标变了才重算，
+   * 不然每帧跑一次白白浪费。
+   */
+  private 找路(起x: number, 起y: number, 终x: number, 终y: number): Array<{ x: number; y: number }> | null {
+    const 通 = this.取通行表();
+    const 键 = (x: number, y: number): number => y * 地图宽 + x;
+    const 在图内 = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < 地图宽 && y < 地图高;
+    if (!在图内(终x, 终y) || !在图内(起x, 起y)) return null;
+
+    // 目标格如果本身不可走（比如站在家具上），退而求其次找它周围能走的格
+    let 目标x = 终x;
+    let 目标y = 终y;
+    if (!通[键(终x, 终y)]) {
+      const 候选 = [
+        [终x + 1, 终y],
+        [终x - 1, 终y],
+        [终x, 终y + 1],
+        [终x, 终y - 1],
+      ].find(([x, y]) => 在图内(x, y) && 通[键(x, y)]);
+      if (!候选) return null;
+      目标x = 候选[0];
+      目标y = 候选[1];
+    }
+
+    const 开表: number[] = [键(起x, 起y)];
+    const 来路 = new Map<number, number>();
+    const g分 = new Map<number, number>([[键(起x, 起y), 0]]);
+    const f分 = new Map<number, number>([
+      [键(起x, 起y), Math.abs(起x - 目标x) + Math.abs(起y - 目标y)],
+    ]);
+    const 终键 = 键(目标x, 目标y);
+    const 关过 = new Set<number>();
+
+    while (开表.length) {
+      // 取 f 最小的（格子少，线性扫足够快）
+      let 最好 = 0;
+      for (let i = 1; i < 开表.length; i += 1) {
+        if ((f分.get(开表[i]) ?? 1e9) < (f分.get(开表[最好]) ?? 1e9)) 最好 = i;
+      }
+      const 当前 = 开表.splice(最好, 1)[0];
+      if (当前 === 终键) {
+        // 回溯路径
+        const 路: Array<{ x: number; y: number }> = [];
+        let p: number | undefined = 当前;
+        while (p !== undefined) {
+          路.push({ x: p % 地图宽, y: Math.floor(p / 地图宽) });
+          p = 来路.get(p);
+        }
+        return 路.reverse();
+      }
+      关过.add(当前);
+      const cx = 当前 % 地图宽;
+      const cy = Math.floor(当前 / 地图宽);
+      for (const [dx, dy] of [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ]) {
+        const nx = cx + dx;
+        const ny = cy + dy;
+        if (!在图内(nx, ny) || !通[键(nx, ny)]) continue;
+        const nk = 键(nx, ny);
+        if (关过.has(nk)) continue;
+        const 新g = (g分.get(当前) ?? 1e9) + 1;
+        if (新g < (g分.get(nk) ?? 1e9)) {
+          if (!开表.includes(nk)) 开表.push(nk);
+          来路.set(nk, 当前);
+          g分.set(nk, 新g);
+          f分.set(nk, 新g + Math.abs(nx - 目标x) + Math.abs(ny - 目标y));
+        }
+      }
+    }
+    return null;
+  }
+
+  /** 指引线：**沿地形寻路**的流动绿点（会绕开墙和关着的门） */
   private 画指引线(): void {
     const g = this.指引线;
     g.clear();
     const 目标 = this.目标;
     if (!目标) return;
-    const { x: tx, y: ty } = this.格到像素(目标.x, 目标.y);
-    const d = Phaser.Math.Distance.Between(this.主角.x, this.主角.y, tx, ty);
-    if (d < 交互半径) return; // 已经到了就不画
 
+    const 自 = this.位置();
+    const 距 = Phaser.Math.Distance.Between(
+      this.主角.x,
+      this.主角.y,
+      目标.x * 格 + 格 / 2,
+      目标.y * 格 + 格,
+    );
+    if (距 < 交互半径) return; // 已经到了就不画
+
+    // 路径缓存：主角换了格、或目标变了，才重算
+    const 路键 = `${自.x},${自.y}->${目标.x},${目标.y}`;
+    if (路键 !== this.路缓存键) {
+      this.路缓存键 = 路键;
+      this.路缓存 = this.找路(自.x, 自.y, 目标.x, 目标.y);
+    }
+    const 路 = this.路缓存;
+    if (!路 || 路.length < 2) return;
+
+    // 把格子路径转成像素点串
+    const 点串: Array<{ x: number; y: number }> = [{ x: this.主角.x, y: this.主角.y - 6 }];
+    for (let i = 1; i < 路.length; i += 1) {
+      const p = this.格到像素(路[i].x, 路[i].y);
+      点串.push({ x: p.x, y: p.y - 8 });
+    }
+
+    // 沿路径按固定间距铺流动的绿点
     const 步 = 9;
     const 流 = (this.time.now / 40) % 步;
-    const 总数 = Math.floor(d / 步);
-    for (let i = 0; i < 总数; i += 1) {
-      const t = (i * 步 + 流) / d;
-      if (t > 1) break;
-      const x = Phaser.Math.Linear(this.主角.x, tx, t);
-      const y = Phaser.Math.Linear(this.主角.y - 6, ty, t);
-      // 越靠近目标越亮
-      g.fillStyle(0xa8d98a, 0.25 + 0.5 * t);
-      g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
+    let 走 = 0;
+    for (let i = 1; i < 点串.length; i += 1) {
+      const a = 点串[i - 1];
+      const b = 点串[i];
+      const 段长 = Phaser.Math.Distance.Between(a.x, a.y, b.x, b.y);
+      for (let t = 0; t < 段长; t += 步) {
+        const 实际 = (走 + t - 流) % 步;
+        if (实际 < 0.5 || 实际 > 步 - 0.5) continue;
+        const 位 = t / 段长;
+        const x = Phaser.Math.Linear(a.x, b.x, 位);
+        const y = Phaser.Math.Linear(a.y, b.y, 位);
+        // 越靠近目标越亮；**明确用绿色**
+        const 近 = Phaser.Math.Clamp((走 + t) / (点串.length * 24), 0, 1);
+        g.fillStyle(0x7cc26b, 0.35 + 0.5 * 近);
+        g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
+      }
+      走 += 段长;
     }
-    // 目标处画一个呼吸的圈
+
+    // 目标处画一个呼吸的绿圈
+    const tx = 目标.x * 格 + 格 / 2;
+    const ty = 目标.y * 格 + 格;
     const r = 8 + Math.sin(this.time.now / 220) * 2;
-    g.lineStyle(2, 0x7cc26b, 0.9);
+    g.lineStyle(2, 0x4a8f4f, 1);
     g.strokeCircle(tx, ty, r);
   }
 
