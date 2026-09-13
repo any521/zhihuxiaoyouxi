@@ -15,24 +15,9 @@ import { 头像 } from '../story/assets';
 import { useStory, type 侧栏面板 } from '../state/story';
 import { useGameStore } from '../state/store';
 import { 播放, 有声, 设声音 } from '../story/audio';
+import { 档案表, 取档案 } from '../story/people';
 
-/** 联系人档案：职位、关系、一句话印象。解锁的人从剧情里来，这里只补身份说明。 */
-interface 联系人档案 {
-  谁: 说话人;
-  职位: string;
-  关系: string;
-  印象: string;
-}
-
-const 档案表: 联系人档案[] = [
-  { 谁: '林总', 职位: '创意部总监', 关系: '你的直属上级', 印象: '说话短，不爱解释。「一句话就行」是他的口头禅。' },
-  { 谁: '周岚', 职位: '项目经理', 关系: '项目对接人', 印象: '先说规则，再谈感情。撤回消息比谁都快。' },
-  { 谁: '小鹿', 职位: '视觉设计', 关系: '坐窗户边的同事', 印象: '群里的气氛担当，也是拉你进茶水间群的人。' },
-  { 谁: '阿麦', 职位: '文案策划', 关系: '同组同事', 印象: '楼下哪家饭馆好吃，问他准没错。' },
-  { 谁: '韩策', 职位: '技术', 关系: '只在项目群说话', 印象: '排期表是他做的，改的人不是他。' },
-  { 谁: '程女士', 职位: '客户 · 甲方项目负责人', 关系: '12 楼那位', 印象: '「她问什么答什么，答不了的，记下来。」' },
-  { 谁: '学长', 职位: '比你早两年入职', 关系: '带过你一阵子', 印象: '会帮你跑腿，但中途经常去接电话。' },
-];
+/* 人物档案统一放在 ../story/people.ts，通讯录和"人物卡弹层"共用一份 */
 
 /** 头像小图 */
 function 脸({ 谁, 尺寸 = 44 }: { 谁: 说话人; 尺寸?: number }): ReactElement | null {
@@ -366,6 +351,93 @@ export function 资料卡(): ReactElement | null {
         </header>
         <div className="pn-body">
           <资料卡内容 />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 人物卡：点聊天里的头像、或点地图上的同事，都会弹这个。
+ * 内容 = 人物档案（职位 / 关系 / 一句印象）+ 打开和 TA 的聊天入口。
+ */
+export function 人物卡(): ReactElement | null {
+  const 谁 = useStory((s) => s.看谁);
+  const 看人物 = useStory((s) => s.看人物);
+  const 会话们 = useStory((s) => s.会话们);
+  const 查看 = useStory((s) => s.查看);
+  const 切面板 = useStory((s) => s.切面板);
+  const 掏手机 = useStory((s) => s.掏手机);
+  const 屏幕 = useStory((s) => s.屏幕);
+  if (!谁) return null;
+
+  const 档案 = 取档案(谁);
+  const 会话 = 会话们.find((c) => c.对方 === 谁);
+  const 图 = 头像(谁);
+
+  const 关 = (): void => {
+    播放('按钮');
+    看人物(null);
+  };
+
+  return (
+    <div className="pn-modal" onClick={关}>
+      <div className="pn-modal-box" onClick={(e) => e.stopPropagation()}>
+        <header className="pn-head">
+          <h2 className="pn-title">人物</h2>
+          <button className="pn-close" onMouseEnter={() => 播放('选项悬停')} onClick={关}>
+            关闭
+          </button>
+        </header>
+        <div className="pn-body">
+          <div className="pn-profile-top">
+            {图 ? (
+              <span className="pn-face" style={{ width: 84, height: 84 }}>
+                <img src={图} alt={谁} draggable={false} />
+              </span>
+            ) : null}
+            <div className="pn-profile-meta">
+              <div className="pn-profile-name">{谁}</div>
+              {档案 ? <div className="pn-profile-sign">{档案.职位}</div> : null}
+            </div>
+          </div>
+
+          {档案 ? (
+            <div className="pn-sec">
+              <div className="pn-sec-title">关系</div>
+              <div className="pn-kv">
+                <span>和你的关系</span>
+                <b>{档案.关系}</b>
+              </div>
+              <div className="pn-sec-title" style={{ marginTop: 18 }}>
+                印象
+              </div>
+              <div className="pn-note" style={{ fontSize: 12, lineHeight: 1.9 }}>
+                {档案.印象}
+              </div>
+            </div>
+          ) : (
+            <div className="pn-note">还没有关于这个人的记录。</div>
+          )}
+
+          {会话 ? (
+            <button
+              className="pn-switch"
+              style={{ justifyContent: 'center' }}
+              onMouseEnter={() => 播放('选项悬停')}
+              onClick={() => {
+                播放('按钮');
+                if (屏幕 !== 'avg') 掏手机();
+                切面板('会话');
+                查看(会话.id);
+                看人物(null);
+              }}
+            >
+              打开与 {谁} 的聊天
+            </button>
+          ) : (
+            <div className="pn-note">{谁} 目前只在群里说话，还没有私聊。</div>
+          )}
         </div>
       </div>
     </div>

@@ -88,6 +88,9 @@ interface 剧情状态 {
   /** 正在播地图上的支线小片段（播完「收起手机」回地图，而不是推进主线） */
   支线中: boolean;
 
+  /** 正在看谁的人物卡（null = 没开）。点头像或点地图上的同事都会开这个。 */
+  看谁: 说话人 | null;
+
   /** 当前等待玩家操作的东西 */
   待接受邀请: { 标题: string; 副标题: string; 按钮: string } | null;
   待选择: { 标签: string }[] | null;
@@ -119,6 +122,8 @@ interface 剧情状态 {
   回地图: () => void;
   /** 从地图掏手机（Esc）*/
   掏手机: () => void;
+  /** 打开/关闭某个人的人物卡 */
+  看人物: (谁: 说话人 | null) => void;
 }
 
 let 条目序号 = 0;
@@ -158,6 +163,7 @@ function 初始() {
     附近交互点: null,
     地图目标: null,
     支线中: false,
+    看谁: null,
     待接受邀请: null,
     待选择: null,
     待暂停: null,
@@ -415,6 +421,7 @@ export const useStory = create<剧情状态>((set, get) => ({
         待暂停: null,
         播完: false,
         支线中: false,
+    看谁: null,
         地图目标: null,
         附近交互点: null,
         搜索开: false,
@@ -439,6 +446,8 @@ export const useStory = create<剧情状态>((set, get) => ({
   },
 
   回地图: () => set({ 屏幕: 'map', 附近交互点: null, 搜索开: false }),
+
+  看人物: (谁) => set({ 看谁: 谁 }),
 
   掏手机: () => set({ 屏幕: 'avg', 搜索开: false }),
 

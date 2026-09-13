@@ -12,6 +12,7 @@ import { useEffect, useRef, useState, type ReactElement } from 'react';
 import Phaser from 'phaser';
 import { OfficeMapScene } from '../game/map/OfficeMapScene';
 import { 交互点表 } from '../game/map/level';
+import { 人物卡 } from './Panels';
 import { useStory } from '../state/story';
 import { 播放 } from '../story/audio';
 import { VIEW_H, VIEW_W } from '../game/viewport';
@@ -27,6 +28,7 @@ export function MapScreen(): ReactElement {
   const 设附近 = useStory((s) => s.设附近);
   const 地图交互 = useStory((s) => s.地图交互);
   const 掏手机 = useStory((s) => s.掏手机);
+  const 看人物 = useStory((s) => s.看人物);
   const 段标签 = useStory((s) => s.段标签);
   const 段号 = useStory((s) => s.段号);
 
@@ -69,6 +71,11 @@ export function MapScreen(): ReactElement {
           交互: (点) => {
             播放('按钮');
             地图交互(点.id);
+          },
+          // 点地图上的同事 → 弹人物卡
+          点人物: (名) => {
+            播放('选项悬停');
+            看人物(名 as never);
           },
         });
         set就绪(true);
@@ -186,6 +193,9 @@ export function MapScreen(): ReactElement {
         微信
         <span className="map-phone-key">Esc</span>
       </button>
+
+      {/* 点地图上的同事弹出来的人物卡 */}
+      <人物卡 />
     </div>
   );
 }

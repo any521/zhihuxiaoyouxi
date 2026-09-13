@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -13,7 +13,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactEl
 import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
 import { 剧情间隔, useStory, type 侧栏面板, type 会话, type 渲染项 } from '../state/story';
-import { 侧栏内容, 资料卡 } from './Panels';
+import { 侧栏内容, 资料卡, 人物卡 } from './Panels';
 import { 播放, 有声, 设声音 } from '../story/audio';
 
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
@@ -126,14 +126,26 @@ function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number
 /** 群头像拼不满 4 个时的兜底成员 */
 const 兜底成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
 
-/** 方形头像（带像素边框） */
+/** 方形头像（带像素边框）。**可点**：点了弹人物卡，和地图上点同事是同一张卡。 */
 function 头({ 谁, 尺寸 = 40 }: { 谁: 说话人; 尺寸?: number }): ReactElement | null {
   const 图 = 头像(谁);
+  const 看人物 = useStory((s) => s.看人物);
   if (!图) return null;
   return (
-    <span className="wc-face" style={{ width: 尺寸, height: 尺寸 }}>
+    <button
+      className="wc-face"
+      style={{ width: 尺寸, height: 尺寸 }}
+      onMouseEnter={() => 播放('选项悬停')}
+      onClick={(e) => {
+        e.stopPropagation();
+        播放('按钮');
+        看人物(谁);
+      }}
+      title={`看看${谁}`}
+      aria-label={`查看${谁}的资料`}
+    >
       <img src={图} alt={谁} draggable={false} />
-    </span>
+    </button>
   );
 }
 
@@ -703,6 +715,9 @@ export function Avg(): ReactElement {
 
       {/* 个人资料卡（点功能栏里自己的头像打开） */}
       <资料卡 />
+
+      {/* 人物卡（点聊天里的头像打开，和地图上点同事同一张） */}
+      <人物卡 />
     </div>
   );
 }

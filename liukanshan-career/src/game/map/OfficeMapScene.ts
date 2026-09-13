@@ -49,6 +49,8 @@ export interface 地图回调 {
   附近变了: (点: 交互点 | null) => void;
   /** 玩家按了交互 */
   交互: (点: 交互点) => void;
+  /** 点了某个同事（弹人物卡） */
+  点人物: (名: string) => void;
 }
 
 export class OfficeMapScene extends Phaser.Scene {
@@ -203,13 +205,13 @@ export class OfficeMapScene extends Phaser.Scene {
       s.setOrigin(0.5, 1);
       if (p.缩放) s.setScale(p.缩放);
       // 按脚底 y 排序：下面的人/物盖住上面的。
-      // ⚠️ 设了 偏移Y 的是**摆在桌面上的小物**（键盘/鼠标/笔筒）：
+      // ⚠️ 桌面小件（键盘/鼠标/笔筒）视觉上在桌子面上：
       //    它们视觉上往上挪了，但深度必须比桌子**大**才不会被桌子盖住，
       //    所以加 0.5 让它紧贴在桌子之后画。第一次没加，桌上的东西全被吃掉了。
-      s.setDepth(y + (p.偏移Y !== undefined ? 0.5 : 0));
+      s.setDepth(y + (p.桌面 ? 0.5 : 0));
 
-      // 桌面小物不挡路（它们摆在桌面上，人撞不到）
-      if (p.偏移Y !== undefined) continue;
+      // 桌面小件不挡路（它们摆在桌面上，人撞不到）
+      if (p.桌面) continue;
 
       // 家具：加一个**贴地的占地**静态碰撞体。
       // ⚠️ 不能拿整张 44×48 的精灵当碰撞体 —— 那样人离桌子还有半个身位就被挡住。
@@ -254,6 +256,11 @@ export class OfficeMapScene extends Phaser.Scene {
       s.setDepth(y);
       // 同事也挡路（不能从人身上穿过去）
       this.加占地(s, 22, 14);
+      // 点同事 → 弹人物卡。热区用整张精灵（比占地大，好点中）
+      s.setInteractive({ useHandCursor: true });
+      s.on('pointerover', () => s.setTint(0xfff2d0));
+      s.on('pointerout', () => s.clearTint());
+      s.on('pointerdown', () => this.回调?.点人物(n.名));
       this.NPC们.push(s);
     }
   }
