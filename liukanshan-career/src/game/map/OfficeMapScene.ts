@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -221,6 +221,7 @@ export class OfficeMapScene extends Phaser.Scene {
     this.挡路 = this.physics.add.staticGroup();
     this.建瓦片集();
     this.建图层();
+    this.建墙遮挡();
     this.建动画();
     this.建坐姿动画();
     this.建道具();
@@ -249,6 +250,35 @@ export class OfficeMapScene extends Phaser.Scene {
     });
     const tex = this.textures.addCanvas('地图瓦片集', cv);
     tex?.setFilter(Phaser.Textures.FilterMode.NEAREST);
+  }
+
+  /**
+   * 墙的遮挡层。
+   *
+   * 问题：主角的碰撞体只有 16px 宽（脚下那一小块），所以他可以贴到墙边，
+   * 精灵上半身会**压到墙上**；而墙在 tilemap 里是整层 depth -100，
+   * 永远被人盖住 → 看着像穿墙。
+   *
+   * 做法：墙和玻璃**另外用一层精灵重画一遍**，每块的深度 = 自己那一行的底部 y。
+   * 这样：
+   *   · 人在墙**南边**（脚底 y 更大）→ 深度更大 → 人画在墙前面 ✅
+   *   · 人在墙**北边**（脚底 y 更小）→ 深度更小 → 墙把人挡住 ✅
+   * 门不参与（门是可通行的，压在门上看着没问题，而且门要能动态开关）。
+   */
+  private 建墙遮挡(): void {
+    const 要画的 = new Set<number>([瓦片.白墙, 瓦片.玻璃]);
+    let 数 = 0;
+    for (let y = 0; y < 地图高; y += 1) {
+      for (let x = 0; x < 地图宽; x += 1) {
+        const 号 = 网格[y][x];
+        if (!要画的.has(号)) continue;
+        const s = this.add.image(x * 格 + 格 / 2, y * 格 + 格, `t${号}`);
+        s.setOrigin(0.5, 1);
+        // 深度 = 本行底部 y（+1 让同格的人和墙有稳定先后）
+        s.setDepth(y * 格 + 格 + 1);
+        数 += 1;
+      }
+    }
   }
 
   private 建图层(): void {
@@ -301,9 +331,11 @@ export class OfficeMapScene extends Phaser.Scene {
       if (p.缩放) s.setScale(p.缩放);
       // 按脚底 y 排序：下面的人/物盖住上面的。
       // ⚠️ 桌面小件（键盘/鼠标/笔筒）视觉上在桌子面上：
-      //    它们视觉上往上挪了，但深度必须比桌子**大**才不会被桌子盖住，
-      //    所以加 0.5 让它紧贴在桌子之后画。第一次没加，桌上的东西全被吃掉了。
-      s.setDepth(y + (p.桌面 ? 0.5 : 0));
+      //    深度必须比桌子**大**才不会被桌子盖住，所以加 0.5。
+      // ⚠️ **转椅要画在人前面**（加 2）：同事坐上去时，椅背要露在人的下半身前，
+      //    看着才是"坐在椅子里"；不加的话人被画在椅子上面，像浮在椅子上。
+      const 加 = p.桌面 ? 0.5 : p.图 === 'prop_ws_转椅' ? 2 : 0;
+      s.setDepth(y + 加);
 
       // 桌面小件不挡路（它们摆在桌面上，人撞不到）
       if (p.桌面) continue;
