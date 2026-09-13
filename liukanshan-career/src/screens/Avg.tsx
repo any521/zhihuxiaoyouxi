@@ -1,4 +1,4 @@
-﻿/**
+/**
  * AVG 剧情屏 —— 微信式界面。
  *
  * 为什么做成微信：剧本本来就是私聊 + 群聊，用真正的聊天界面
@@ -13,6 +13,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactEl
 import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
 import { 剧情间隔, useStory, type 会话, type 渲染项 } from '../state/story';
+import { 播放, 有声, 设声音 } from '../story/audio';
 
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
 
@@ -278,6 +279,7 @@ export function Avg(): ReactElement {
   const 回列表 = useStory((s) => s.回列表);
   const 重置 = useStory((s) => s.重置);
 
+  const [开启声音, set开启声音] = useState(有声);
   const 消息区 = useRef<HTMLDivElement>(null);
   const { 宽: 列表宽, 拖拽中, 开始拖, 设宽 } = use拖拽宽度();
   const 当前 = 会话们.find((c) => c.id === 查看会话) ?? 会话们[0];
@@ -340,9 +342,23 @@ export function Avg(): ReactElement {
           ))}
         </div>
 
-        <button className="wc-reset" onClick={重置}>
-          重来
-        </button>
+        <div className="wc-list-foot">
+          <button
+            className="wc-reset"
+            onClick={() => {
+              const 新 = !开启声音;
+              set开启声音(新);
+              设声音(新);
+              if (新) 播放('按钮');
+            }}
+            title={开启声音 ? '关掉音效' : '打开音效'}
+          >
+            {开启声音 ? '🔊 音效开' : '🔇 音效关'}
+          </button>
+          <button className="wc-reset" onClick={重置}>
+            重来
+          </button>
+        </div>
       </section>
 
       {/* ── 可拖拽分栏 ── */}
@@ -395,7 +411,12 @@ export function Avg(): ReactElement {
             <div className="wc-choices">
               <div className="wc-choices-hint">发送一条消息（选定不可撤销）</div>
               {待选择.map((o, i) => (
-                <button key={i} className="wc-choice" onClick={() => 选择(i)}>
+                <button
+                  key={i}
+                  className="wc-choice"
+                  onMouseEnter={() => 播放('选项悬停')}
+                  onClick={() => 选择(i)}
+                >
                   <span className="wc-choice-key">{'ABC'[i]}</span>
                   <span className="wc-choice-label">{o.标签}</span>
                 </button>

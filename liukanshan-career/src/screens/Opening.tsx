@@ -10,6 +10,7 @@
 import { useEffect, useRef, type ReactElement } from 'react';
 import { 插图表, type 插图名 } from '../story/assets';
 import { 开场镜表, useStory } from '../state/story';
+import { 播放 } from '../story/audio';
 
 export function Opening(): ReactElement {
   const 开场格 = useStory((s) => s.开场格);
@@ -18,6 +19,12 @@ export function Opening(): ReactElement {
 
   const 镜 = 开场镜表[开场格];
   const 是最后一格 = 开场格 >= 开场镜表.length - 1;
+
+  // 每换一格配个音：标题卡用厚重的「开场标题」，其它格用轻一点的「转场」
+  useEffect(() => {
+    if (开场格 === 0) return; // 第一格是黑场，不出声
+    播放(是最后一格 ? '开场标题' : '转场', 是最后一格 ? 0.5 : 0.26);
+  }, [开场格, 是最后一格]);
 
   // 每格按自己的时长自动推进；到最后一格就进剧情
   useEffect(() => {

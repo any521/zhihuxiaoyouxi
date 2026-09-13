@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 开场动画 + 微信式 AVG 的样式。
  *
  * 配色（2026-09-13 改）：**米白为主 + 绿色点缀**，浅色主题。
@@ -407,8 +407,15 @@
   border: 2px solid var(--cream-2);
 }
 
+.wc-list-foot {
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px 12px;
+}
+
 .wc-reset {
-  margin: 8px 12px 12px;
+  flex: 1;
+  margin: 0;
   padding: 8px;
   font-size: 12px;
   font-family: inherit;
