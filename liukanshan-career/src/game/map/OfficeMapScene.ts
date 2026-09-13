@@ -691,6 +691,15 @@ export class OfficeMapScene extends Phaser.Scene {
     ]);
     const 终键 = 键(目标x, 目标y);
     const 关过 = new Set<number>();
+    /** 到这一格时"最后一步的方向"，用来算转弯惩罚 */
+    const 来向 = new Map<number, number>();
+    const 转弯罚 = 0.4;
+    const 方向们: Array<[number, number, number]> = [
+      [1, 0, 0],
+      [-1, 0, 1],
+      [0, 1, 2],
+      [0, -1, 3],
+    ];
 
     while (开表.length) {
       // 取 f 最小的（格子少，线性扫足够快）
@@ -712,21 +721,24 @@ export class OfficeMapScene extends Phaser.Scene {
       关过.add(当前);
       const cx = 当前 % 地图宽;
       const cy = Math.floor(当前 / 地图宽);
-      for (const [dx, dy] of [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ]) {
+      const 旧向 = 来向.get(当前);
+      for (const [dx, dy, 向] of 方向们) {
         const nx = cx + dx;
         const ny = cy + dy;
         if (!在图内(nx, ny) || !通[键(nx, ny)]) continue;
         const nk = 键(nx, ny);
         if (关过.has(nk)) continue;
-        const 新g = (g分.get(当前) ?? 1e9) + 1;
+        // ⚠️ 换了方向就加转弯惩罚。不加的话四方向代价都是 1，
+        //    等代价路径有无数条，A* 会返回**阶梯状**的路（右一格、下一格、右一格…），
+        //    看着像在乱绕，玩家会觉得"这不是最短路径"。
+        //    取 0.4（远小于 1）：只在"多绕一格"和"多转一次弯"之间取舍，
+        //    不会为了少转弯而明显绕远。
+        const 罚 = 旧向 !== undefined && 旧向 !== 向 ? 转弯罚 : 0;
+        const 新g = (g分.get(当前) ?? 1e9) + 1 + 罚;
         if (新g < (g分.get(nk) ?? 1e9)) {
           if (!开表.includes(nk)) 开表.push(nk);
           来路.set(nk, 当前);
+          来向.set(nk, 向);
           g分.set(nk, 新g);
           f分.set(nk, 新g + Math.abs(nx - 目标x) + Math.abs(ny - 目标y));
         }
