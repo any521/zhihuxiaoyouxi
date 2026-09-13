@@ -28,9 +28,11 @@ import {
  道具表,
   占地表,
   座位表,
+  找附近座位,
   取NPC,
   type NPC位,
   type 交互点,
+  type 座位,
 } from './level';
 import { 报位置 } from './位置总线';
 import { 取道具卡, 道具落地范围 } from '../../story/道具卡';
@@ -123,6 +125,10 @@ export class OfficeMapScene extends Phaser.Scene {
   private 主角坐着 = false;
   /** 上一帧玩家是不是站在椅子上（只在变化时回报，省得每帧刷 store） */
   private 上次在座位 = false;
+  /** 坐下之前"站着时脚底"的像素 y（起来时要还原，不然会浮在椅子上） */
+  private 站着脚底: number | null = null;
+  /** 现在坐在哪个座位上（起来时用来还原位置） */
+  private 坐的座位: 座位 | null = null;
   private 目标 = 交互点表[0] as 交互点 | undefined;
 
   constructor() {
@@ -148,14 +154,28 @@ export class OfficeMapScene extends Phaser.Scene {
   坐下(): boolean {
     if (this.主角坐着) return true;
     const 位 = this.位置();
-    const 套 = this.坐哪套(位.x, 位.y);
-    if (!套) return false; // 这格不是座位
+    // ⚠️ **在椅子附近就能坐**（用户要求："只要是在椅子附近就能坐下，
+    //    不是只能在椅子前面或后面"）。所以不是"这一格必须是座位"，
+    //    而是"半径内最近的座位是哪把"（`找附近座位`，1.6 格 ≈ 前后左右 + 斜角）。
+    const 近 = 找附近座位(位.x, 位.y);
+    if (!近) return false; // 附近没有椅子
+    const 套 = this.坐哪套(近.座位.x, 近.座位.y);
+    if (!套) return false;
     const key = 套 === 'front' ? '坐正_刘看山' : '坐_刘看山';
     if (!this.anims.exists(key)) return false;
     this.主角坐着 = true;
-    // 坐姿素材的锚点仍在脚底 —— 位置不用动，直接把贴图换成坐姿
+    // 坐下时**把人挪到那把椅子上**（从"站在旁边"挪到"坐在上面"）
+    const 椅 = this.格到像素(近.座位.x, 近.座位.y);
+    this.站着脚底 = 椅.y;
+    this.坐的座位 = 近.座位;
     this.主角.anims.stop();
     this.主角.anims.play(key, true);
+    // ⚠️ **横向也要挪到椅子上**（别只改 y —— 踩过：站在椅子左边按空格，
+    //    人只在原地升高，看着像"浮在旁边的空中"）。
+    this.主角.x = 椅.x;
+    // 往上抬到**这把椅子自己的座面高度**（每张座位记了 `偏移Y`，见 `level.ts`）
+    this.主角.y = 椅.y + 近.座位.偏移Y;
+    this.主角.setDepth(this.主角.y);
     this.回调?.坐姿变了?.(true);
     return true;
   }
@@ -178,6 +198,13 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角坐着 = false;
     this.主角.anims.stop();
     this.主角.setTexture('lks_idle', this.朝向);
+    // ⚠️ 还原到**那把椅子脚底**（不是"站着的原地"）—— 因为坐下时人已经被
+    //    挪到椅子上了，站着的时候如果还留在椅子上会显得"站在椅子里面"。
+    const 椅 = this.坐的座位;
+    this.主角.y = 椅 ? this.格到像素(椅.x, 椅.y).y : (this.站着脚底 ?? this.主角.y);
+    this.站着脚底 = null;
+    this.坐的座位 = null;
+    this.主角.setDepth(this.主角.y);
     this.回调?.坐姿变了?.(false);
   }
 
@@ -606,7 +633,7 @@ export class OfficeMapScene extends Phaser.Scene {
   }
 
   /** 这个格子是不是"能坐的座位"（站/坐在椅子上 → 播坐姿动画）
-   *  ⚠️ 用 `座位表` 查，不扫 `道具表`：座位表还包含**会议椅**（茶水间/会议室那几把），
+   *  ⚠️ 用 `座位表` 查，不扫 `道具表`：座位表还包含**会议椅/沙发**，
    *     只认转椅的话，坐在茶水间的同事会**站着**摆在那儿。 */
   private 是椅子(x: number, y: number): boolean {
     return 座位表.some((s) => s.x === x && s.y === y);
@@ -638,8 +665,11 @@ export class OfficeMapScene extends Phaser.Scene {
       const 套 = this.坐哪套(n.x, n.y);
       const 能坐 = !!套 && 有坐姿.includes(n.名) && this.textures.exists(`sit_${n.名}`);
       const 用正面 = 套 === 'front' && this.anims.exists(`坐正_${n.名}`);
+      // ⚠️ 坐着的同事要往上抬到**那把椅子自己的座面**（`座位.偏移Y`）——
+      //    主角用同一套数，所以两边**天然对齐**（这是用户要的"和同事们一样对齐"）。
+      const 偏移Y = 座位表.find((c) => c.x === n.x && c.y === n.y)?.偏移Y ?? 0;
       const s = 能坐
-        ? this.add.sprite(x, y, 用正面 ? `sitfront_${n.名}` : `sit_${n.名}`, 0)
+        ? this.add.sprite(x, y + 偏移Y, 用正面 ? `sitfront_${n.名}` : `sit_${n.名}`, 0)
         : this.add.sprite(x, y, n.图, NPC朝向帧[n.朝向] ?? 0);
       if (能坐) s.anims.play(用正面 ? `坐正_${n.名}` : `坐_${n.名}`, true);
       s.setOrigin(0.5, 1);
@@ -708,17 +738,18 @@ export class OfficeMapScene extends Phaser.Scene {
   }
 
   /**
-   * 报"玩家脚下是不是一把椅子"（决定按空格是坐下/站起来，还是普通交互）。
+   * 报"玩家在不在椅子/沙发附近"（决定按空格是坐下/站起来，还是普通交互）。
    *
    * ⚠️ 和 `查附近物()` 共用"只在换格时重算"的思路：只跟人在哪一格有关。
-   * ⚠️ 用 `格()` 取整格，不是拿像素比 —— 座位表是格坐标。
+   * ⚠️ 判据是**附近 1.6 格内有座位**（`找附近座位`），不是"正好站在椅子上" ——
+   *    用户要求"只要是在椅子附近就能坐下"。
    */
   private 查站在座位上(): void {
     const 位 = this.位置();
-    const 在座位上 = this.是椅子(位.x, 位.y);
-    if (在座位上 === this.上次在座位) return;
-    this.上次在座位 = 在座位上;
-    this.回调?.站在座位上变了?.(在座位上, 位);
+    const 在座位 = !!找附近座位(位.x, 位.y);
+    if (在座位 === this.上次在座位) return;
+    this.上次在座位 = 在座位;
+    this.回调?.站在座位上变了?.(在座位, 位);
   }
 
   /**
