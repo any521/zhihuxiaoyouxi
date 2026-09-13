@@ -48,11 +48,11 @@ const 读人 = () =>
   页.evaluate(() => {
     const s = window.__lksMap;
     const 图层 = s.图层;
-    return s.NPC们.map((o) => ({
-      名: o.getData('名'),
-      格: [Math.floor((o.x - 16) / 32), Math.floor((o.y - 32) / 32)],
-      动画: o.anims?.currentAnim?.key ?? null,
-    }));
+    return s.NPC们.map((o) => {
+      // ⚠️ 用场景给的**逻辑格**：坐着的同事被抬高了，按像素反推会差一行（实测 4,20→4,19）
+      const g = s.NPC所在格(o);
+      return { 名: o.getData('名'), 格: [g.x, g.y], 动画: o.anims?.currentAnim?.key ?? null };
+    });
   });
 
 const 读剧情 = () =>

@@ -140,6 +140,20 @@ export class OfficeMapScene extends Phaser.Scene {
     this.回调 = 回调;
   }
 
+  /**
+   * 同事**逻辑上在哪一格**（不是精灵画在哪）。
+   *
+   * ⚠️ 坐着的同事会被往上抬 `座位.偏移Y`（为了不被椅子盖住），
+   *    所以"按像素反推格号"会读成**上面那一行**（实测 4,20 → 4,19）。
+   *    体检脚本要判"这个人在不在茶水间椅子上"必须用逻辑格，不能用画出来的格。
+   */
+  NPC所在格(s: Phaser.GameObjects.Sprite): { x: number; y: number } {
+    const 名 = s.getData('名') as string | undefined;
+    const 位 = 取NPC(this.段号).find((n) => n.名 === 名);
+    if (位) return { x: 位.x, y: 位.y };
+    return { x: Math.floor((s.x - 16) / 格), y: Math.floor((s.y - 32) / 格) };
+  }
+
   /** 换一个导航目标（指引线指向它） */
   设目标(id: string | null): void {
     this.目标 = id ? 交互点表.find((p) => p.id === id) : undefined;
@@ -841,7 +855,13 @@ export class OfficeMapScene extends Phaser.Scene {
     // （⚠️ 写 30 就太紧了：同事坐的椅子格和它上面那格正好差 32px，会弹不出来）
     let 最近 = 40;
     for (const s of this.NPC们) {
-      const d = Phaser.Math.Distance.Between(this.主角.x, this.主角.y, s.x, s.y);
+      // ⚠️ **按"逻辑站位"算距离，不能按精灵画在哪**：
+      //    坐着的同事被往上抬了 `座位.偏移Y`（为了不被椅子盖住），
+      //    拿抬高的那点当圆心，就离玩家远了 20px —— 站在旁边弹不出卡（实测 5 位同事全漏）。
+      //    用 `NPC所在格` 取逻辑格，再换算成那格的"脚底像素"当圆心。
+      const g = this.NPC所在格(s);
+      const 脚底 = this.格到像素(g.x, g.y);
+      const d = Phaser.Math.Distance.Between(this.主角.x, this.主角.y, 脚底.x, 脚底.y);
       if (d < 最近) {
         最近 = d;
         谁 = (s.getData('名') as string | undefined) ?? null;
