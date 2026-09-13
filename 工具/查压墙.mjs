@@ -91,6 +91,15 @@ for (const m of level.matchAll(/\[布局\.(\w+), (布局\.\w+|\d+), (\d+), 瓦�
   门表.push([行, 列, Number(m[3]), 瓦片[m[4]]]);
 }
 
+// 占地表也抠出来（查挡门要用）
+const 占地表 = {};
+const 占m = /export const 占地表[^{]*\{([\s\S]*?)\n\};/.exec(level);
+if (占m) {
+  for (const mm of 占m[1].matchAll(/(\w+):\s*\[(\d+),\s*(\d+)\]/g)) {
+    占地表[mm[1]] = [Number(mm[2]), Number(mm[3])];
+  }
+}
+
 const 网格 = 造网格(布局, 门表, 瓦片);
 const 挡路 = new Set([瓦片.白墙, 瓦片.玻璃]);
 
@@ -147,6 +156,38 @@ for (const p of 道具表) {
     console.log(`     精灵宽 ${精灵宽}px → 占格 x ${gx1}~${gx2}，建议挪到 x=${gx1 + (gx1 < p.x ? 1 : 0) + 1} 附近`);
   }
 }
+
+// ── 再查一遍：**有没有道具挡住门**（这类 bug 出过：文化墙摆在了门口）──
+// 宽门占 2 格，两格都算门口
+const 门口 = new Set();
+for (const [行, 列, , 瓦] of 门表) {
+  门口.add(`${列},${行}`);
+  门口.add(`${列 + 1},${行}`);
+}
+let 挡门数 = 0;
+for (const p of 道具表) {
+  if (p.桌面) continue;
+  const 占地 = 占地表[p.图];
+  if (!占地) continue;
+  const [w, h] = 占地;
+  const 中心x = p.x * 格 + 格 / 2;
+  const 底y = p.y * 格 + 格 + (p.偏移Y ?? 0);
+  const gx1 = Math.floor((中心x - w / 2) / 格);
+  const gx2 = Math.floor((中心x + w / 2 - 1) / 格);
+  const gy1 = Math.floor((底y - h) / 格);
+  const gy2 = Math.floor((底y - 1) / 格);
+  const 撞 = [];
+  for (let y = Math.max(0, gy1); y <= Math.min(高 - 1, gy2); y += 1) {
+    for (let x = Math.max(0, gx1); x <= Math.min(宽 - 1, gx2); x += 1) {
+      if (门口.has(`${x},${y}`)) 撞.push(`(${x},${y})`);
+    }
+  }
+  if (撞.length) {
+    挡门数 += 1;
+    console.log(`  ❌ ${p.图.replace('prop_', '').padEnd(18)} 摆在 (${p.x},${p.y})  **挡住了门**：${撞.join(' ')}`);
+  }
+}
+if (挡门数 === 0) console.log('  ✅ 没有道具挡住门');
 
 if (问题数 === 0) console.log('  ✅ 没有道具压在墙上');
 else console.log(`\n  共 ${问题数} 件压墙，需要挪位置`);

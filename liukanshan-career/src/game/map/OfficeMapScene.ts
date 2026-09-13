@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 办公室地图场景。
  *
  * 和 AVG 的联系（这是这一块的设计核心）：
@@ -621,6 +621,29 @@ export class OfficeMapScene extends Phaser.Scene {
         t[y * 地图宽 + x] = 挡路瓦片.includes(网格[y][x]) ? 0 : 1;
       }
     }
+
+    // ⚠️ **家具也要算进去**。
+    //    只按瓦片算的话，指引线会直接从文化墙、接待台、办公桌里穿过去 ——
+    //    因为那些是"道具"，不在瓦片层里。
+    //    这里用的是和游戏碰撞体**同一份数据**（占地表），
+    //    所以寻路走出来的路，和玩家真能走的路是一致的。
+    for (const p of 道具表) {
+      if (p.桌面) continue; // 桌面小件不挡路
+      const 占地 = 占地表[p.图];
+      if (!占地) continue;
+      const [宽, 高] = 占地;
+      const 中心x = p.x * 格 + 格 / 2;
+      const 底y = p.y * 格 + 格 + (p.偏移Y ?? 0);
+      const gx1 = Math.floor((中心x - 宽 / 2) / 格);
+      const gx2 = Math.floor((中心x + 宽 / 2 - 1) / 格);
+      const gy1 = Math.floor((底y - 高) / 格);
+      const gy2 = Math.floor((底y - 1) / 格);
+      for (let y = Math.max(0, gy1); y <= Math.min(地图高 - 1, gy2); y += 1) {
+        for (let x = Math.max(0, gx1); x <= Math.min(地图宽 - 1, gx2); x += 1) {
+          t[y * 地图宽 + x] = 0;
+        }
+      }
+    }
     return t;
   }
 
@@ -760,7 +783,7 @@ export class OfficeMapScene extends Phaser.Scene {
         const y = Phaser.Math.Linear(a.y, b.y, 位);
         // 越靠近目标越亮；**明确用绿色**
         const 近 = Phaser.Math.Clamp((走 + t) / (点串.length * 24), 0, 1);
-        g.fillStyle(0x7cc26b, 0.35 + 0.5 * 近);
+        g.fillStyle(0x4a8f4f, 0.55 + 0.45 * 近); // 高亮墨绿
         g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
       }
       走 += 段长;
@@ -770,7 +793,7 @@ export class OfficeMapScene extends Phaser.Scene {
     const tx = 目标.x * 格 + 格 / 2;
     const ty = 目标.y * 格 + 格;
     const r = 8 + Math.sin(this.time.now / 220) * 2;
-    g.lineStyle(2, 0x4a8f4f, 1);
+    g.lineStyle(2, 0x2f5d3a, 1); // 墨绿
     g.strokeCircle(tx, ty, r);
   }
 
