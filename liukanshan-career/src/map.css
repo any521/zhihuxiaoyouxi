@@ -50,12 +50,13 @@
 }
 
 /* ───────── 左下：靠近家具时弹的「这东西是干嘛的」卡片 ─────────
-   为什么放左下：底部中间要留给「空格 交互」提示、右下是微信按钮，
-   卡片是**被动出现**的信息，塞在角上最不挡路。 */
+   为什么放左下/右下：底部中间要留给「空格 交互」提示。
+   ⚠️ 右下那张（人物卡）必须**避开右下角的两个按钮**（设置 + 微信，最高到 54px），
+      所以底边留 64px —— 原来留 46px，实测卡片下半截被微信按钮盖住。 */
 .map-prop {
   position: absolute;
   left: 14px;
-  bottom: 46px;
+  bottom: 52px;
   max-width: min(300px, 46vw);
   padding: 10px 12px 11px;
   color: #f7efdd;
@@ -88,10 +89,12 @@
   border-top: 1px dashed rgba(247, 239, 221, 0.18);
 }
 
-/* 人物卡：换成绿色边 + 有职位小标签，摆在**右边**（道具卡在左边，各占一角） */
+/* 人物卡：换成绿色边 + 有职位小标签，摆在**右边**（道具卡在左边，各占一角）。
+   ⚠️ 底边 64px：要避开右下角的 设置齿轮(38px) 和 微信按钮(约 54px)。 */
 .map-prop.who {
   left: auto;
   right: 14px;
+  bottom: 64px;
   border-left: 2px solid rgba(247, 239, 221, 0.3);
   border-right: 6px solid #7cc26b;
   animation: map-pop-right 0.16s ease-out both;
@@ -180,13 +183,16 @@
   padding: 2px 6px;
 }
 
-/* 右下角（微信按钮上方）：设置齿轮 */
+/* 右下角：设置齿轮 —— 从"微信正上方"改成"微信右边"，
+   因为原来它正好压在右下角**人物卡**的右下角（卡片右半边被齿轮盖住）。
+   ⚠️ 它现在和人物卡在竖直方向上是错开的：
+      卡片底边 64px 起、往上长；齿轮 16px → 54px，两者不重叠。 */
 .map-gear {
   position: absolute;
-  right: 14px;
-  bottom: 68px;
-  width: 42px;
-  height: 42px;
+  right: 12px;
+  bottom: 62px;
+  width: 34px;
+  height: 34px;
   display: grid;
   place-items: center;
   padding: 0;
@@ -291,7 +297,15 @@
 
   .map-gear {
     right: 10px;
-    bottom: 62px;
+    bottom: 58px;
+  }
+
+  /* 手机上屏幕窄，两张卡都往上抬：底下要留出 设置齿轮 + 微信按钮 那一行，
+     以及中间那条「空格 交互」提示（bottom 64px） */
+  .map-prop,
+  .map-prop.who {
+    bottom: 118px;
+    max-width: min(240px, 62vw);
   }
 
   .map-prompt {
