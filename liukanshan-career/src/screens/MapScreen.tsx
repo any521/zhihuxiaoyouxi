@@ -199,12 +199,18 @@ export function MapScreen(): ReactElement {
     场景.current?.换NPC(NPC排布号 ?? 段号);
   }, [段号, NPC排布号, 就绪]);
 
-  /* ── 剧情里按了空格要"坐下/站起来"：计数器一变就执行一次 ── */
-  const 坐下请求 = useStory((s) => s.坐下请求);
+  /* ── 剧情说"要坐下/站起来"：一次性任务，执行完就清掉 ── */
+  const 请求坐 = useStory((s) => s.请求坐);
+  const 坐完了 = useStory((s) => s.坐完了);
   useEffect(() => {
-    if (!就绪 || 坐下请求 === 0) return;
-    场景.current?.坐下还是站起();
-  }, [坐下请求, 就绪]);
+    if (!就绪 || !请求坐) return;
+    const s = 场景.current;
+    if (s) {
+      if (请求坐 === '站') s.站起来();
+      else s.坐下();
+    }
+    坐完了();
+  }, [请求坐, 就绪, 坐完了]);
 
   /* ── 键盘：Tab 掏手机 / Esc 设置 / 空格 交互 ── */
   const 按键 = useCallback(
