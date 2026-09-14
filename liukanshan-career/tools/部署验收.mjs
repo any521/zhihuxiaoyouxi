@@ -50,7 +50,13 @@ p.on('console', (m) => {
 p.on('pageerror', (e) => 报错.push(`[pageerror] ${e.message}`.slice(0, 200)));
 
 console.log(`打开：${地址}`);
-await p.goto(地址, { waitUntil: 'networkidle2', timeout: 60000 });
+/**
+ * ⚠️⚠️ 必须带 nologin=1（用户要求「进站先走知乎授权」之后加的口子 ✗）——
+ *    不带的话页面会**自动跳到知乎授权页** ✔，这个脚本就变成在验知乎的站了 ✔
+ *    （实测：报错全是 www.zhihu.com 的 CORS ✗，根本不是我们的站 ✔）
+ */
+const 免登录 = 地址.includes('?') ? 地址 + '&nologin=1' : 地址 + '?nologin=1';
+await p.goto(免登录, { waitUntil: 'networkidle2', timeout: 60000 });
 await new Promise((r) => setTimeout(r, 2500));
 
 const 状态 = await p.evaluate(() => ({

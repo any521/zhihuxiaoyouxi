@@ -175,6 +175,15 @@ export class OfficeScene extends Phaser.Scene {
 
   private running = false;
   private finished = false;
+  /**
+   * **会挡路的道具**（工位家具 + 装饰 ✗）。
+   *
+   * ⚠️⚠️ 用户报「打印机、咖啡机、工位等道具没有物理碰撞」✗ —— 真相是：
+   *    它们**都有静态物理体** ✔，但我**从来没给玩家挂 collider** ✔
+   *    （地图那边是「收进挡路组 + physics.add.collider」✗，我这份漏了后半步 ✔）
+   *    → 有体、却谁也撞不上 ✔
+   */
+  private 道具们: Phaser.GameObjects.GameObject[] = [];
   private carrying: CarryKind = null;
   private carryTags: 工序[] = [];
   /**
@@ -624,6 +633,7 @@ export class OfficeScene extends Phaser.Scene {
       if (d.texture === '垃圾桶') this.垃圾桶们.push({ x: 图.x, y: 图.y });
       const 尺寸 = 装饰占地[d.texture] ?? [Math.round(图.width * 0.6), Math.round(图.height * 0.3)];
       this.physics.add.existing(图, true);
+      this.道具们.push(图); // ⚠️ 收进来才会真的挡人（见 create 里的 collider ✗）
       const body = 图.body as Phaser.Physics.Arcade.StaticBody | null;
       if (!body) continue;
       const [宽, 高] = 尺寸;
@@ -653,6 +663,7 @@ export class OfficeScene extends Phaser.Scene {
        */
       const 尺寸 = 占地表[工位贴图[def.kind]] ?? [26, 14];
       this.physics.add.existing(sprite, true);
+      this.道具们.push(sprite); // ⚠️ 同上：工位家具也要真的挡人 ✗
       const body = sprite.body as Phaser.Physics.Arcade.StaticBody | null;
       if (body) {
         const [宽, 高] = 尺寸;
@@ -714,6 +725,17 @@ export class OfficeScene extends Phaser.Scene {
     this.physics.add.collider(this.player, this.layer);
     this.physics.add.collider(this.npc, this.layer);
     this.physics.add.collider(this.player, this.npc);
+    /**
+     * ⚠️⚠️ **道具也要真的和玩家/队友建立碰撞** ✗ ——
+     *    用户报「打印机、咖啡机、工位等道具没有物理碰撞」✔
+     *    上面三行只挂了**瓦片墙**和**队友** ✗，道具虽有静态体，
+     *    却**没有任何 collider 引用它们** ✔ → 于是能直接穿过去 ✔
+     *    （地图场景是「收进挡路组 + collider」✗，这里漏了后半步 ✔）
+     */
+    if (this.道具们.length) {
+      this.physics.add.collider(this.player, this.道具们);
+      this.physics.add.collider(this.npc, this.道具们);
+    }
   }
 
   private setBody(sprite: Phaser.Physics.Arcade.Sprite): void {

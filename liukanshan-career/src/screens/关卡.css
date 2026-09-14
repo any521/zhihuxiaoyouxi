@@ -2630,3 +2630,470 @@
   line-height: 1.45 !important;
 }
 
+
+/* ═══════════ 修「打印机持续打印时上面状态字体重叠」 ═══════════
+   ⚠️ 用户报：工作关里**打印机持续打印**时，上面的状态文字**重叠**了 ✗
+   根因：第三行 .lv-help 里挤了「提示 + 按键说明 + 飘字 + 跳过」✗，
+        而 .lv-toasts 是 **flex-wrap: wrap** ✗ ——
+        打印期间 say() 会**连续推飘字** ✔ → 飘字越堆越多、换行把这一行**撑高** ✔
+        → 压到上面那行，看起来就是"字体重叠" ✔
+   改法：这一行**一律不换行** ✗，放不下就**裁剪/省略** ✔（宁可少显示，绝不撑破 ✔） */
+
+.lv-help {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0;
+  overflow: hidden !important;
+  height: 100%;
+  max-height: 100%;
+}
+
+/* 「现在该做什么」：一行，超了省略 ✗ */
+.lv-now {
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 按键说明：可以压缩，也能省略 ✔ */
+.lv-keys {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 飘字：**绝不换行、绝不撑高** ✗；多了就裁掉（只显示塞得下的几条 ✔） */
+.lv-toasts {
+  flex: 0 1 auto !important;
+  min-width: 0;
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+  height: 100% !important;
+  align-items: center !important;
+}
+
+.lv-toast {
+  flex: 0 0 auto;
+  white-space: nowrap !important;
+}
+
+/* 跳过按钮不许被挤走 ✔ */
+.lv-skip {
+  flex: 0 0 auto !important;
+}
+
+
+/* ═══════════ 修「文字跑到框外」+「设置不能滚」（横板专用 ✗） ═══════════
+   ⚠️⚠️ 关键认知：手机横板是**整个关卡被转了 90°** ✗ ——
+      · `vh / vw` 这类单位算的是**屏幕**✔，不是板子 ✔ → 在板子里用会算错 ✔
+      · 一切尺寸**必须用板上百分比（%）或板内 px** ✗
+   用户报的两件事都是这个引起的：
+     ① 第三行文字**超出任务条**（跑到画布上 ✗）
+     ② 点设置后**内容切了且滚不动**（max-height: 88vh 比板子还高 ✔） */
+
+/* ① 第三行：整行锁死在自己的宽度里，谁都不许越界 ✗ */
+.lv-help,
+.lv-help * {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.lv-help {
+  width: 100% !important;
+  overflow: hidden !important;
+  contain: paint;
+}
+
+.lv-now,
+.lv-keys,
+.lv-toasts {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+/* ② 弹窗（设置/暂停/结算）：高度按**板子**算，超出就滚 ✔ */
+.lv-root .overlay {
+  max-height: 100% !important;
+  max-width: 100% !important;
+  overflow: hidden !important;
+}
+
+.lv-root .overlay > * {
+  max-height: 100% !important;
+  max-width: 100% !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ⚠️ 覆盖掉之前那些用 vh 的写法（它们在横板上是错的 ✗） */
+.lv-root .modal,
+.lv-root .overlay .modal {
+  max-height: 94% !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+
+/* ═══════════ 修「第三行文字出框」+「设置滑不动」（照实测数据 ✗）═══════════
+   ⚠️⚠️ 前两次我都猜错了 ✗ —— 这次是**量出来的** ✔：
+   ① .lv-help 只分到 11px（内容要 17px ✗）
+      根因：grid 模板只写了 4 种行 ✗，**漏了 .lv-help 这一行** ✔
+      → 它被当成多余的自动行挤扁 ✔
+   ② 设置弹窗其实**能滚**（内容 873 / 可视 349 ✔）✗
+      但整个关卡**转了 90°** ✗ → 手指"竖着拖"在它的坐标系里是**横向** ✔
+      → 感觉滑不动 ✔
+   修法：① 把这一行**显式写进 grid 模板** ✔；② 手机端把弹窗内容**压到不需要滚动** ✔ */
+
+/* ① grid 行模板补上「提示行」 ✗ —— 桌面 5 行、手机 3 行 */
+.lv-top {
+  grid-template-rows: auto auto auto auto 22px !important;
+}
+
+.lv-root.lv-touch .lv-top {
+  grid-template-rows: auto auto 22px !important;
+}
+
+/* 提示行：固定 22px，内容一行内省略 ✔ */
+.lv-help {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+  overflow: hidden !important;
+  align-items: center !important;
+  font-size: 12px;
+  line-height: 1.1;
+}
+
+.lv-help .lv-now,
+.lv-help .lv-keys,
+.lv-help .lv-toasts {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden !important;
+}
+
+/* ② 手机端：设置/暂停/结算 弹窗压到"不用滚也能看完" ✔ */
+.lv-root.lv-touch .overlay .modal {
+  font-size: 12px !important;
+  padding: 10px 12px !important;
+  max-height: 96% !important;
+}
+
+.lv-root.lv-touch .overlay .modal h2 {
+  font-size: 15px !important;
+  margin: 0 0 6px !important;
+}
+
+.lv-root.lv-touch .overlay .modal h3 {
+  font-size: 12px !important;
+  margin: 6px 0 3px !important;
+}
+
+.lv-root.lv-touch .overlay .modal .manual li,
+.lv-root.lv-touch .overlay .modal p,
+.lv-root.lv-touch .overlay .modal section {
+  margin: 2px 0 !important;
+  line-height: 1.4 !important;
+}
+
+.lv-root.lv-touch .overlay .modal .row {
+  gap: 4px !important;
+  margin-top: 6px !important;
+}
+
+.lv-root.lv-touch .overlay .modal button {
+  padding: 7px 10px !important;
+  font-size: 12px !important;
+}
+
+/* ⚠️ 万一还是要滚：给个天然的滚动提示（转到自己的滚动轴上 ✔） */
+.lv-root.lv-touch .overlay > * {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+
+/* ═══════════ 设置/暂停弹窗：**反向旋转**，在屏幕上是正的 ✔（手机横板专用 ✗）═══════════
+   ⚠️⚠️ 实测数据：内容 753px、板内只有 363px ✗ → **滚动躲不掉** ✔
+      而整个关卡被转了 +90° ✗ → 弹窗的滚动轴也跟着转了 ✔
+      → 手指在屏幕上"竖着拖"在它的坐标系里是**横向** ✔ → 用户感觉"滑不动" ✔
+   解法：把弹窗**反向转 -90°** ✔
+      · 它在屏幕上就变成**正的** ✔（看得不用歪头 ✔）
+      · 滚动轴回到屏幕的竖直方向 ✔（正常上滑就能滚 ✔）
+      · transform-origin: center → 转完仍然居中 ✔
+      · 尺寸用 vh/vw（**屏幕单位** ✔）—— 反向转回来之后这正是我们要的 ✔ */
+
+.lv-root.lv-touch .overlay .modal {
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  width: 88vh !important;
+  max-width: 88vh !important;
+  height: 78vw !important;
+  max-height: 78vw !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* 弹窗在屏幕上变正之后，字号可以回到正常大小（不用再为"板子窄"而缩小 ✗） */
+.lv-root.lv-touch .overlay .modal h2 {
+  font-size: 17px !important;
+}
+
+.lv-root.lv-touch .overlay .modal h3 {
+  font-size: 13px !important;
+}
+
+.lv-root.lv-touch .overlay .modal,
+.lv-root.lv-touch .overlay .modal .manual li,
+.lv-root.lv-touch .overlay .modal p {
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+}
+
+/* 开场简报卡也一起转正 ✔（它内容也长 ✗） */
+.lv-root.lv-touch .overlay > div:not(.modal),
+.lv-root.lv-touch .overlay .brief,
+.lv-root.lv-touch .overlay .lv-brief {
+  transform: rotate(-90deg);
+  transform-origin: center center;
+  width: 88vh !important;
+  max-width: 88vh !important;
+  max-height: 78vw !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+
+/* ⚠️⚠️ 修正尺寸：弹窗净旋转 = 0°（板子 +90 + 自己 -90 ✗）
+   → 它在屏幕上就是"没转过"的 ✔ → **直接用屏幕单位 vw/vh** ✗
+   （上一版我写了 width: 88vh = 743px ✗，而屏幕只有 390 宽 ✔ → 文字跑出屏幕 ✔） */
+
+.lv-root.lv-touch .overlay .modal {
+  width: 86vw !important;
+  max-width: 86vw !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: 78vh !important;
+  overflow-y: auto !important;
+}
+
+.lv-root.lv-touch .overlay > div:not(.modal),
+.lv-root.lv-touch .overlay .brief,
+.lv-root.lv-touch .overlay .lv-brief {
+  width: 86vw !important;
+  max-width: 86vw !important;
+  max-height: 78vh !important;
+  overflow-y: auto !important;
+}
+
+
+/* ═══════════ 撤掉反向旋转，改成"板子方向里可滑"（用户要求 ✗）═══════════
+   ⚠️ 用户说「**不要将文字写反**」✗ —— 所以把上一版的 rotate(-90deg) **撤掉** ✔
+      · 弹窗回到和关卡一致的朝向（横板下就是横着看 ✔ 和游戏里其它文字一致 ✔）
+   ⚠️ 同时要求「**改为可以滑动的**」✔ —— 不转的时候有个好性质 ✗：
+      **弹窗自己的"纵向" = 屏幕的横向** ✔
+      → 所以只要允许两个方向的手势 ✗，在屏幕上**横着拖**就能滚 ✔
+      （再加 board 单位的 max-height ✔，保证超出就一定滚得动 ✔） */
+
+.lv-root.lv-touch .overlay .modal,
+.lv-root.lv-touch .overlay > div:not(.modal),
+.lv-root.lv-touch .overlay .brief,
+.lv-root.lv-touch .overlay .lv-brief {
+  transform: none !important;      /* ← 撤掉反向旋转 ✔ 文字不再"写反" ✔ */
+  width: auto !important;
+  max-width: 94% !important;       /* ← 板子宽度百分比（板内单位 ✔）*/
+  max-height: 94% !important;      /* ← 板子高度百分比 */
+  min-width: 0 !important;
+}
+
+/* 手上/触摸：**横竖都能拖** ✗ —— 横着拖就是它的纵向滚动 ✔ */
+.lv-root.lv-touch .overlay > *,
+.lv-root.lv-touch .overlay .modal {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y !important;
+}
+
+/* 滚动条给一条细的，提示"这里能滚" ✔ */
+.lv-root.lv-touch .overlay .modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lv-root.lv-touch .overlay .modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 3px;
+}
+
+
+/* ═══════════ 说明/设置弹窗：**反向转正 + 屏幕单位尺寸 + 竖着能滑** ═══════════
+   ⚠️⚠️ 这版是把前两次的**正确部分合起来** ✗（前两次各发了一半 ✔）：
+     · 只转正不发尺寸 → 文字超出屏幕 ✗（width: 88vh = 743px，屏幕才 390 ✔）
+     · 只撤回旋转 → 手指竖着拖滚不动 ✗（滚动轴还转着 ✔）
+   为什么转正就能竖着滑 ✔：弹窗净旋转 = 板子(+90) + 自己(−90) = **0°** ✔
+     → 它在屏幕上就是"没转过"的 ✔ → 自己的纵向 = 屏幕纵向 ✔ → 竖着拖就滚 ✔
+   而尺寸必须用 **vw/vh（屏幕单位 ✗）**，因为这时它已经和屏幕同向 ✔ */
+
+.lv-root.lv-touch .overlay .modal,
+.lv-root.lv-touch .overlay > div:not(.modal),
+.lv-root.lv-touch .overlay .brief,
+.lv-root.lv-touch .overlay .lv-brief {
+  transform: rotate(-90deg) !important;
+  transform-origin: center center !important;
+  width: 88vw !important;
+  max-width: 88vw !important;
+  min-width: 0 !important;
+  height: auto !important;
+  max-height: 82vh !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y !important;
+}
+
+/* 转正之后字号回到正常阅读大小 ✔ */
+.lv-root.lv-touch .overlay .modal {
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  padding: 14px 16px !important;
+}
+
+.lv-root.lv-touch .overlay .modal h2 {
+  font-size: 18px !important;
+  margin: 0 0 6px !important;
+}
+
+.lv-root.lv-touch .overlay .modal h3 {
+  font-size: 14px !important;
+  margin: 10px 0 4px !important;
+}
+
+.lv-root.lv-touch .overlay .modal .manual li,
+.lv-root.lv-touch .overlay .modal p {
+  margin: 3px 0 !important;
+  line-height: 1.6 !important;
+}
+
+/* 细滚动条，提示"这里能滚" ✔ */
+.lv-root.lv-touch .overlay .modal::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lv-root.lv-touch .overlay .modal::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.22);
+  border-radius: 3px;
+}
+
+
+/* ═══════════ 任务条：**不写死行数**，有几块就排几行（用户报"任务卡片又被遮挡"）═══════════
+   ⚠️⚠️ 根因：我上一条为了修「第三行文字出框」，给 grid 补了提示行 ✗
+      但只写了 **3 行**模板（auto auto 22px ✗），而手机端其实有 **5 块**：
+        ① 标题行 ② 工单卡 ③ 手上 ④ 队友 ⑤ 提示行
+      → 多出来的两块落到"隐式自动行"里被挤扁 ✔ → 工单卡被遮挡 ✔
+   改法：**干脆不写行数** ✔ —— 让 grid 自动行按内容排 ✔（以后再加/减一块都不会崩 ✗） */
+
+.lv-top {
+  grid-template-rows: none !important;
+  grid-auto-rows: auto !important;
+  align-content: start !important;
+  row-gap: 2px !important;
+}
+
+.lv-root.lv-touch .lv-top {
+  grid-template-rows: none !important;
+  grid-auto-rows: auto !important;
+  align-content: start !important;
+}
+
+/* 每一块都不许被压扁：高度按内容 ✔ */
+.lv-top-line,
+.lv-cards,
+.lv-carry,
+.lv-helper,
+.lv-help {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+}
+
+/* 工单卡行：按内容高（卡片自身多高就多高 ✔），横向可滑 ✔ */
+.lv-cards {
+  min-height: 30px !important;
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+}
+
+/* 提示行仍然固定 22px（它本来就是一行文字 ✔） */
+.lv-help {
+  height: 22px !important;
+  min-height: 22px !important;
+  max-height: 22px !important;
+}
+
+
+/* ⚠️ 标题行被挤到 15px（溢出 ✗）—— 给它一个最小高度 ✔
+   预算：24(标题) + 37(工单卡) + 24(手上) + 23(队友) + 22(提示) = 130 ≤ 140 ✔ 装得下 ✔ */
+.lv-top-line {
+  min-height: 24px !important;
+  height: auto !important;
+  overflow: hidden !important;
+}
+
+.lv-top-line .lv-title {
+  line-height: 1.25 !important;
+}
+
+.lv-top-line .lv-prog,
+.lv-top-line .lv-sub {
+  line-height: 1.25 !important;
+}
+
+
+/* ⚠️⚠️ 提示行重叠的根因：四个子元素是 flex: 0 1 auto ✗（可压缩）→
+   压缩后文字溢出自己的盒子 ✔ → 视觉上叠在一起 ✔
+   改法：**一律不许压缩** ✔（flex: 0 0 auto），超了就各自省略 ✔ */
+.lv-help {
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+}
+
+.lv-help > * {
+  flex: 0 0 auto !important;
+  min-width: 0 !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+}
+
+/* 飘字区最多占一半宽，免得把提示和按键挤没 ✔ */
+.lv-toasts {
+  max-width: 42% !important;
+}
+
+/* 单条飘字也省略 ✔（它原来会把整行顶开 ✗） */
+.lv-toast {
+  max-width: 100% !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+

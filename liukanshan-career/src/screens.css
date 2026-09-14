@@ -1976,3 +1976,79 @@
   background: rgba(0, 0, 0, 0.08);
 }
 
+
+/* ── 知乎登录门（进站先授权 ✗）── */
+.zm-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f6f1e4;
+  z-index: 9999;
+}
+
+.zm-card {
+  width: min(92vw, 420px);
+  padding: 28px 24px;
+  text-align: center;
+  background: #fffdf6;
+  border: 3px solid #2f2f2f;
+  border-radius: 10px;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.18);
+}
+
+.zm-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.zm-sub {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #5a544a;
+}
+
+.zm-btn {
+  display: block;
+  margin: 20px auto 0;
+  padding: 12px 0;
+  width: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  color: #fff;
+  background: #0084ff;
+  border-radius: 8px;
+}
+
+.zm-btn:hover {
+  filter: brightness(1.06);
+}
+
+.zm-skip {
+  margin-top: 12px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #8a8378;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+
+/* ── 登录门上的小提示（微信登录的知乎账号无法授权 ✗） ── */
+.zm-note {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed #d8cfba;
+  font-size: 11px;
+  line-height: 1.65;
+  color: #8a8378;
+  text-align: left;
+}
+
