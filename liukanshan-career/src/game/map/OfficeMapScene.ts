@@ -119,6 +119,21 @@ export class OfficeMapScene extends Phaser.Scene {
   当前交互点(): 交互点 | null {
     return this.当前附近;
   }
+
+  /**
+   * **玩家是不是站在某个交互点附近**（按 id 查 ✗）。
+   *
+   * ⚠️⚠️ 为什么需要它：我为了兜底「按空格没反应」✗，
+   *    一度让「剧情在等去哪儿」时**在任何位置**按空格都算到达 ✔
+   *    → 用户立刻报「**没走到特定位置也能按空格触发剧情**」✗
+   *    正解：只有**真的走近了**才认 ✔（半径放宽一点 ✗，别太苛刻 ✔）
+   */
+  在点附近(id: string, 半径 = 52): boolean {
+    const 点 = 交互点表.find((p) => p.id === id);
+    if (!点) return false;
+    const 位 = this.格到像素(点.x, 点.y);
+    return Phaser.Math.Distance.Between(this.主角.x, this.主角.y, 位.x, 位.y) <= 半径;
+  }
   /** 玩家旁边那件东西（道具卡用）。**变了才回调**，免得每帧刷 React。 */
   private 当前附近物: 附近物 | null = null;
   /** 上一帧玩家在第几格 —— 没换格就不重算"旁边是什么" */

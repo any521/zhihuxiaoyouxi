@@ -3097,3 +3097,51 @@
   white-space: nowrap !important;
 }
 
+
+/* ═══════════ 打印机倒计时块（用户报"显示还是偏移"）═══════════
+   ⚠️⚠️ 根因：这块（.lv-printer）**从来没有样式** ✗ ——
+      它被 .lv-extra 的 display:contents 摊平成了任务条的一行 ✔，
+      但里面"打印机 / 工序 · 还差 x.xs"没有排版 ✗ → 看着就是偏移 ✔
+   现在给它和"手上 / 队友"完全一致的一套 ✔ */
+
+.lv-printer {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 6px !important;
+  height: auto !important;
+  min-height: 18px;
+  padding: 2px 8px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  border: 2px solid #d08a1e;
+  border-radius: 3px;
+  background: #fff8e8;
+}
+
+.lv-printer-name {
+  flex: 0 0 auto;
+  font-size: 12px;
+  font-weight: 700;
+  color: #a8620a;
+}
+
+.lv-printer-do {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 任务条那一行里的四块统一节奏 ✔（手上有 on 态、队友有边框 ✗） */
+.lv-extra > * {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+}
+
