@@ -76,3 +76,12 @@ _知乎skill/
 liukanshan-intern-diary/
 工具/一次性/
 tools/
+
+# ───────── 部署相关（2026-09 移除：含服务器信息 ✗）─────────
+# ⚠️ 这些文件里有服务器地址/路径/部署流程 ✔ —— 不适合放在公开仓库里 ✗
+工具/部署-*.sh
+工具/远程.mjs
+工具/nginx/
+工具/部署说明.md
+liukanshan-career/tools/部署验收.mjs
+.agents/skills/zhihu/
