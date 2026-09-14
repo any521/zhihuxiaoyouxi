@@ -25,13 +25,18 @@ export function StoryClock(): null {
   const 待接受邀请 = useStory((s) => s.待接受邀请);
   const 待暂停 = useStory((s) => s.待暂停);
   const 待去房间 = useStory((s) => s.待去房间);
+  // ⚠️ 「开小游戏」也要停：那不切屏、只出按钮，等玩家自己点（他要先翻前面的消息）
+  const 待开小游戏 = useStory((s) => s.待开小游戏);
+  // ⚠️ 跑团是**玩家驱动**的（点一次骰子走一轮），时钟必须让位 ——
+  //    不停的话玩家还在读这一轮，时间到了就跳下一轮了。
+  const 跑团中 = useStory((s) => s.跑团局 !== null);
   const 播完 = useStory((s) => s.播完);
   const 速度 = useStory((s) => s.速度);
   const 推进一步 = useStory((s) => s.推进一步);
 
   useEffect(() => {
     if (屏幕 !== 'avg') return;
-    if (待选择 || 待接受邀请 || 待暂停 || 播完 || 待去房间) return;
+    if (待选择 || 待接受邀请 || 待暂停 || 播完 || 待去房间 || 待开小游戏 || 跑团中) return;
     const 本 = 队列[位置];
     // ⚠️ `切会话` 之后给玩家留一点时间看未读红点，不然会"刚跳过去就已经播完了"。
     //    （剧情不会停，只是这一拍慢一点。）
@@ -39,7 +44,7 @@ export function StoryClock(): null {
     const 时长 = (本?.类型 === '切会话' ? Math.max(基础, 1400) : 基础) / 速度;
     const t = window.setTimeout(() => 推进一步(), 时长);
     return () => window.clearTimeout(t);
-  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 待去房间, 推进一步, 速度]);
+  }, [屏幕, 队列, 位置, 待选择, 待接受邀请, 待暂停, 播完, 待去房间, 待开小游戏, 跑团中, 推进一步, 速度]);
 
   return null;
 }

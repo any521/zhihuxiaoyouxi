@@ -1,0 +1,2632 @@
+/* ══════════════════════════════════════════════════════════════════════
+   工作关（小游戏）· 全屏 + 上下 1:4 + 主题样式
+   ──────────────────────────────────────────────────────────────────────
+   用户要求：「小游戏改为全屏，上下 1:4，上面 1/5 显示需要的任务，
+   不要这样的 ui，要做成主题样式和当前主题一致的 UI」。
+   所以这块**不再用深蓝游戏 HUD**，改成和 AVG / 地图同一套：
+   米白底 + 墨绿描边 + 深棕字（变量都在 `screens.css` 的 :root 里）。
+   ══════════════════════════════════════════════════════════════════════ */
+
+.lv-root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: #14161c;
+  overflow: hidden;
+}
+
+/* ── 上 1/5：任务条 ── */
+.lv-top {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 14px;
+  overflow: hidden;
+  background: var(--cream);
+  border-bottom: 3px solid var(--green-2);
+  box-sizing: border-box;
+}
+
+.lv-top-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.lv-tag {
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--cream);
+  background: var(--green);
+  border-radius: 3px;
+  flex: none;
+}
+
+.lv-title {
+  font-size: 15px;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-prog {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.lv-prog b {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.lv-bad {
+  font-style: normal;
+  color: var(--red);
+}
+
+.lv-sub {
+  font-size: 11px;
+  color: var(--ink-2);
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-clock {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.lv-clock b {
+  font-size: 16px;
+  color: var(--green-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-clock b.low {
+  color: var(--red);
+}
+
+.lv-bar {
+  display: block;
+  width: 96px;
+  height: 8px;
+  background: var(--cream-3);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lv-bar > i {
+  display: block;
+  height: 100%;
+  background: var(--green);
+}
+
+/* ── 工单卡那一排 ── */
+.lv-orders {
+  display: flex;
+  /* ⚠️ 用户要求：「上面的任务**只排一排，不要放第二排**」——
+     所以这里**不换行**（nowrap）；真放不下就横向滚（配合每单有时限，正常不会超） */
+  flex-wrap: nowrap;
+  gap: 8px;
+  align-items: stretch;
+  min-height: 0;
+  /* ⚠️ 纵向**不许滚也不许裁**：工单卡被切掉一半，玩家就看不出这单要做什么了 */
+  overflow-y: hidden;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.lv-card {
+  /* ⚠️ `flex: none`：不加的话窄屏上三张卡会被挤成一条线、字全折断 */
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 5px 9px;
+  background: #fffdf6;
+  border: 2px solid var(--line);
+  border-left: 4px solid var(--green);
+  border-radius: 4px;
+}
+
+.lv-card-top {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.lv-card-top b {
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.lv-card-type {
+  font-size: 10px;
+  color: var(--cream);
+  background: var(--green-2);
+  padding: 0 4px;
+  border-radius: 2px;
+}
+
+.lv-card-pts {
+  margin-left: auto;
+  font-size: 11px;
+  color: #8f5a33;
+}
+
+.lv-card-steps {
+  display: flex;
+  gap: 5px;
+}
+
+/* 工序小徽章：没做是空心，做了是实心 + 图标 */
+.lv-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px 1px 2px;
+  font-size: 11px;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.lv-step.done {
+  background: var(--green-4);
+  border-color: var(--green-2) !important;
+  font-weight: 700;
+}
+
+.lv-ico {
+  flex: none;
+  /* ⚠️ 这是**真素材**（14×16 / 13×16 / 12×15，宽高比各不相同）：
+     统一按高度对齐、宽度自适应，不要写死宽高，否则会拉变形。 */
+  height: 16px;
+  width: auto;
+  image-rendering: pixelated;
+}
+
+/* 手上这一版 + 帮忙的同事 */
+.lv-carry,
+.lv-helper {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  padding: 5px 9px;
+  background: var(--cream-2);
+  border: 2px dashed var(--line);
+  border-radius: 4px;
+}
+
+.lv-carry.on {
+  background: #fffdf6;
+  border-style: solid;
+  border-color: var(--green-3);
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.lv-carry-steps {
+  display: flex;
+  gap: 5px;
+}
+
+/* 打印机状态（"放进去等出来"，走开了也要看得到） */
+.lv-printer {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 8px;
+  background: rgba(214, 236, 255, 0.94);
+  border: 2px solid #2c5fa8;
+  border-radius: 8px;
+  line-height: 1.2;
+}
+
+.lv-printer-name {
+  font-size: 11px;
+  font-weight: 800;
+  color: #1c3f70;
+}
+
+.lv-printer-do {
+  font-size: 11px;
+  color: #2c5fa8;
+  font-variant-numeric: tabular-nums;
+}
+
+.lv-helper {
+  border-style: solid;
+  border-color: var(--green-2);
+}
+
+.lv-helper-who {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--green-2);
+}
+
+.lv-helper-do {
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.lv-empty {
+  font-size: 12px;
+  color: var(--ink-2);
+  align-self: center;
+}
+
+/* 宽屏：这两层"等于没包"，工单卡 + 手上 + 帮手还是原来那一排横铺 */
+.lv-cards,
+.lv-extra {
+  display: contents;
+}
+
+/* ── 下 4/5：画布 ── */
+.lv-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #14161c;
+}
+
+/* ── 右下角沙漏（用户要求："右下角显示沙漏动画显示时间"） ──
+   ⚠️ 这是**唯一允许压在画布上**的元素：它在右下角，那片是墙根/空地，
+      工位和素材全在上半区。体检里对此有专门断言（不许压到工位那一排）。 */
+.lv-hour {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px 3px 5px;
+  background: rgba(247, 239, 221, 0.92);
+  border: 2px solid var(--green-2);
+  border-radius: 8px;
+  box-shadow: 0 2px 0 rgba(36, 26, 18, 0.22);
+  pointer-events: none;
+}
+
+/* ── 左下角：技能卡（和右下角沙漏对称，都在画布下缘的墙根/空地上） ── */
+.lv-cardbar {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 6;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.lv-skillcard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  max-width: 210px;
+  padding: 4px 8px 4px 6px;
+  background: rgba(247, 239, 221, 0.94);
+  border: 2px solid var(--green-2);
+  border-radius: 8px;
+  box-shadow: 0 2px 0 rgba(36, 26, 18, 0.22);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lv-skillcard:hover {
+  background: #fffaf0;
+  transform: translateY(-1px);
+}
+
+.lv-skillcard b {
+  position: absolute;
+  margin: -14px 0 0 -12px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #f7efdd;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.lv-skillcard-name {
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.lv-skillcard i {
+  font-size: 10px;
+  font-style: normal;
+  color: #6b5a45;
+}
+
+/* 卡的类别给不同边色（和剧情里的卡池一致） */
+.lv-skillcard.t-提问 { border-color: #2f7d4f; }
+.lv-skillcard.t-举证 { border-color: #2c5fa8; }
+.lv-skillcard.t-拒绝 { border-color: #8f5a33; }
+.lv-skillcard.t-复盘 { border-color: #6b4f9e; }
+.lv-skillcard.t-共情 { border-color: #b84a6a; }
+.lv-skillcard.t-幽默 { border-color: #b8860b; }
+
+.lv-hour b {
+  font-size: 15px;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 时间吃紧：边框和时间一起变红 */
+.lv-hour.low {
+  border-color: #c0392b;
+}
+
+.lv-hour.low b {
+  color: #c0392b;
+}
+
+/*
+ * 沙漏 = 两层动画，分工要分清楚：
+ *   ① `.lv-hour-img` 走**精灵表帧**（640×64 = 10 帧 64×64）。精灵表**只能**靠
+ *      background-position 走帧 —— 但必须配 `steps(10)`，不然就是"整条图平滑左右滑动"
+ *      （用户看到的"左右滑动"就是这么来的：少了 steps 就是滑动，不是逐帧）。
+ *   ② `.lv-hour` 这个**容器**做**上下反转跳动** —— 用户要求：
+ *      「上下反转跳动**不是**左右滑动」。
+ *
+ * ⚠️ 两层必须拆开：帧动画的时长跟着"紧不紧"变（吃紧时 0.9s），
+ *    跳动要有自己的固定节奏；塞在一个元素上的话 animation-duration 会互相顶。
+ */
+/**
+ * 沙漏 = **两个动画挂在同一张图上**，时长和步进完全一样，所以严格同拍：
+ *   ① `沙漏走帧`：精灵表按帧推进（只动 background-position）
+ *   ② `沙漏变面`：**一个循环翻一次**（只动 transform: scaleY）
+ *
+ * ⚠️⚠️ 用户要求：「**只有沙漏反转，卡片不反转**」（另一句"每变一帧就反转一下"实测是错的 ——
+ *    那样沙漏会一直抖，用户随即报了"其他动画一直在摆头"，所以改成**沙子漏完才翻一次**）。
+ *    · 所以反转挂在**图上**（`.lv-hour-img`），**不是挂在卡片上** ——
+ *      之前挂在 `.lv-hour`（整个筹码，含"220s"文字）上，结果是**整张卡跟着翻** ✗
+ *    · 两个动画都用 `steps(10)`：10 帧 ↔ 10 步，换帧和翻转严格同拍 ✔
+ *    · TSX 给的 `animation-duration` 是**单个值**，会同时作用于这两个动画 ✔
+ *      （吃紧时 0.9s、平时 2.2s，两者一起加快，不会脱拍）
+ */
+/**
+ * ⚠️⚠️ **走帧方向是"纵向"的**（用户要求：「动画改为**上下对调**，不是**左右滑动**」）。
+ *
+ * 精灵表原来是**横排**的（640×64 = 10 帧并排）→ 走帧时 background-position 在**横向**移动，
+ * 看着就是"左右滑动" ✗。
+ * 现在用**竖排表** `hourglass_v.png`（64×640 = 10 帧上下叠），走帧变成 background-position **纵向**移动 ✔
+ * 配合下面的 `沙漏变面`（scaleY 上下翻转），整只沙漏的动都是**上下方向**的 ✔
+ */
+.lv-hour-img {
+  width: 32px;
+  height: 32px;
+  background-repeat: no-repeat;
+  /* ⚠️ 竖排：宽 32 / 高 320（10 帧） */
+  background-size: 32px 320px;
+  --总高: 320px;
+  image-rendering: pixelated;
+  animation-name: 沙漏走帧, 沙漏变面;
+  /* ⚠️ 走帧 = 一个循环（10 帧）；**变面 = 两个循环**（沙子漏完一次才翻一次） */
+  animation-duration: var(--帧长, 2.2s), calc(var(--帧长, 2.2s) * 2);
+  animation-timing-function: steps(10), step-end;
+  animation-iteration-count: infinite, infinite;
+}
+
+/* ⚠️ 只动 Y（纵向）—— 横排表时代这里是 `-320px 0`（横向滑动） */
+@keyframes 沙漏走帧 {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: 0 calc(var(--总高, 320px) * -1);
+  }
+}
+
+/* 每 10% 翻一次 —— 正好对上精灵表的 10 帧（配 steps(10) 就是"每帧翻一下"） */
+/**
+ * **变面**：前半程正面、后半程倒过来 —— 配 `step-end` 就是"走到一半时翻一下"。
+ *
+ * ⚠️⚠️ 我第一版写成"每 10% 翻一下"（= **每换一帧翻一下**），结果沙漏**一直在抖** ——
+ *    用户报的「其他动画一直在摆头」就是它 ✗。
+ *    正确的做法是**一个循环翻一次**：沙子漏完（10 帧）→ 翻过来接着漏 ✔
+ *    这才是真沙漏的样子，也才不抖。
+ */
+@keyframes 沙漏变面 {
+  0% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(-1);
+  }
+  100% {
+    transform: scaleY(1);
+  }
+}
+
+.lv-canvas {
+  position: relative;
+  flex: none;
+}
+
+/* Phaser 挂载层：铺满 .lv-canvas（画布本身再由下面的规则拉满它） */
+.lv-host {
+  position: absolute;
+  inset: 0;
+}
+
+/* 工位名牌（DOM 画，保证中文清晰）—— 换成主题配色，不再是深色终端风 */
+.lv-root .station-label {
+  /* ⚠️ 图标 + 文字排成一行小牌子：先后顺序、间距都定死，
+     不然窄屏上图标和字会挤在一起（"不要重叠"是用户明确要求）。 */
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  background: rgba(247, 239, 221, 0.94);
+  border: 2px solid var(--green-2);
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  text-shadow: none;
+  white-space: nowrap;
+}
+
+/* 机器自己的小图标（真素材，像素锐利） */
+.lv-station-ico {
+  width: auto;
+  height: 14px;
+  flex: none;
+  image-rendering: pixelated;
+}
+
+/* 加工位（资料库/工位/文印区）用暖色边，和"取料/交付"区分开 */
+.lv-root .station-label.machine {
+  border-color: #8f5a33;
+  color: #6b4423;
+}
+
+.lv-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  image-rendering: pixelated;
+}
+
+/* ── 任务条第三行：**文字全在这里，画布上一个浮层都没有** ──
+   ⚠️ 用户要求「每个机器比如打印机要**显示出来**，并且**提示不要盖住字体和素材**」。
+      原来"现在该做什么"和飘字是 **fixed 浮在画布上**的：房间最上面那一排工位
+      （文件柜 / 资料库 / 我的工位 / 文印区）连名牌一起被盖住，手机竖版上更明显。
+      现在整行都排在任务条里 —— 画布区域百分之百干净，机器、名牌、素材全露得出来。 */
+.lv-help {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 0;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.lv-now b {
+  margin-right: 6px;
+  font-size: 11px;
+  color: var(--green-2);
+}
+
+.lv-keys {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.lv-keys b {
+  color: var(--ink);
+}
+
+/* 飘字：也排在这一行里（**不再浮在画布上**） */
+.lv-toasts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.lv-toast {
+  display: inline-flex;
+  gap: 6px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--ink);
+  background: #fffdf6;
+  border: 2px solid var(--green-2);
+  border-radius: 3px;
+  animation: lv-toast-in 0.18s ease-out;
+}
+
+.lv-toast b {
+  flex: none;
+  color: var(--green-2);
+}
+
+@keyframes lv-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.lv-skip {
+  margin-left: auto;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  color: var(--ink-2);
+  cursor: pointer;
+  background: var(--cream-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+}
+
+.lv-skip:hover {
+  color: var(--ink);
+  border-color: var(--green-2);
+}
+
+/* 手机窄屏：任务条压紧一点，别把画布挤没 */
+@media (max-width: 720px) {
+  .lv-top {
+    padding: 6px 10px;
+    gap: 4px;
+  }
+  .lv-sub {
+    display: none;
+  }
+  .lv-bar {
+    width: 64px;
+  }
+  /* 窄屏：这一行让位给工单卡，操作说明收进暂停菜单（Esc 里有一整节"操作"） */
+  .lv-keys {
+    display: none;
+  }
+
+  /* ⚠️ 窄屏上任务条只有 1/5 的高度，**每一行都必须压成一行**，不然纵向裁切（实测 208px > 166px）。
+     做法：能缩的加 `flex:1 + min-width:0 + 省略号`（标题 / 现在该做什么），不能缩的 `flex:none`。 */
+  .lv-top-line {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .lv-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 13px;
+  }
+  .lv-tag,
+  .lv-prog,
+  .lv-clock {
+    flex: none;
+  }
+  .lv-prog {
+    font-size: 11px;
+  }
+  .lv-now {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lv-skip {
+    flex: none;
+    padding: 3px 8px;
+  }
+  /* ⚠️ 说明行也必须**只占一行**：飘字一多它就换行，一行 24px 变 62px，
+      任务条立刻超 1/5 的高度（实测 190 > 166）。所以窄屏上强制不换行 + 飘字截断。 */
+  .lv-help {
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+  .lv-toasts {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: nowrap;
+    overflow: hidden;
+  }
+  .lv-toast {
+    max-width: 38vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .lv-carry,
+  .lv-helper {
+    padding: 2px 6px;
+  }
+  .lv-carry-steps {
+    gap: 3px;
+  }
+  /* 手上的工序也收成图标（和工单卡一致），这样"手上 + 帮手"能挤在一行 */
+  .lv-carry .lv-step-name {
+    display: none;
+  }
+  .lv-carry .lv-step {
+    padding: 1px;
+  }
+  .lv-carry-name,
+  .lv-helper-who,
+  .lv-helper-do {
+    font-size: 10px;
+  }
+  .lv-carry,
+  .lv-helper {
+    flex: none;
+  }
+  /* ⚠️ 窄屏上分成**上下两行**：
+     上一行是工单卡（横向滚，不换行 —— 换行的话 1/5 的高度装不下两排，第三张会被切掉）；
+     下一行是"手上这一版 + 帮手"（不然它们会被挤到屏幕外面去，实测过）。 */
+  .lv-orders {
+    display: block;
+    overflow: hidden;
+  }
+  .lv-cards {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
+  }
+  .lv-extra {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    align-items: stretch;
+  }
+  .lv-card {
+    padding: 4px 7px;
+  }
+  .lv-card-top b {
+    font-size: 11px;
+  }
+  .lv-card-type {
+    font-size: 9px;
+  }
+  .lv-card-pts {
+    font-size: 10px;
+  }
+  .lv-step {
+    gap: 2px;
+    padding: 1px 4px 1px 1px;
+    font-size: 10px;
+  }
+  .lv-ico {
+    height: 12px;
+    width: auto;
+  }
+  /* 工单卡里只留图标（三张卡才排得下）；"手上这一版"里保留工序名 */
+  .lv-card .lv-step-name {
+    display: none;
+  }
+  .lv-card .lv-step {
+    padding: 1px;
+  }
+  .lv-card-top b {
+    max-width: 76px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .lv-card-type,
+  .lv-card-pts {
+    display: none;
+  }
+  .lv-carry,
+  .lv-helper {
+    padding: 4px 7px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   关卡里的三个弹窗（开场简报 / 暂停 / 结算）—— **也要主题样式**
+   ──────────────────────────────────────────────────────────────────────
+   ⚠️ 这三个组件渲染在 `.lv-root` 里，但样式来自 `styles.css` 的
+   `.overlay / .modal / .card` —— 那是**深蓝黑**的一套（旧 HUD 时代留下的）。
+   所以这里在 `.lv-root` 作用域下**整套覆盖一遍**成米白 + 绿 + 棕。
+   （用作用域覆盖而不去改 styles.css：地图 / AVG 那边不受影响，改动面最小。）
+   ⚠️ 按钮选择器必须写 `.lv-root .overlay button`，不能写 `.lv-root button` ——
+      后者会把右下角那个 `.lv-skip`（跳过这一关）也一起变成绿色主按钮。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 主题里没有 --gold，评级 S 要用，补一个 */
+.lv-root {
+  --gold: #ffb020;
+}
+
+.lv-root .overlay {
+  z-index: 60;
+  background: rgba(20, 22, 28, 0.62);
+}
+
+.lv-root .modal {
+  width: min(460px, 92vw);
+  max-height: calc(100% - 32px);
+  overflow-y: auto;
+  padding: 18px 20px;
+  color: var(--ink);
+  background: var(--cream);
+  border: 3px solid var(--green-2);
+  border-radius: 6px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.45);
+}
+
+.lv-root .modal h2 {
+  margin: 0 0 6px;
+  font-size: 19px;
+  color: var(--ink);
+}
+
+.lv-root .modal h3 {
+  margin: 14px 0 6px;
+  font-size: 14px;
+  color: var(--green-2);
+}
+
+.lv-root .modal p {
+  margin: 0 0 12px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+.lv-root .modal ul,
+.lv-root .modal ol {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 12px;
+  line-height: 1.85;
+  color: var(--ink);
+}
+
+.lv-root .modal li {
+  margin-bottom: 4px;
+}
+
+.lv-root .modal li b {
+  color: var(--green-2);
+}
+
+/* ── 技能卡 ── */
+.lv-root .card {
+  padding: 10px 12px;
+  background: #fffdf6;
+  border: 2px solid var(--line);
+  border-radius: 5px;
+}
+
+.lv-root .card-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.lv-root .card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.lv-root .card-desc {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--ink);
+}
+
+.lv-root .card-locked {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--ink-2);
+  opacity: 0.85;
+}
+
+.lv-root .tag {
+  padding: 1px 6px;
+  font-size: 10px;
+  color: var(--green-2);
+  background: transparent;
+  border: 1px solid var(--green-2);
+  border-radius: 3px;
+}
+
+.lv-root .tag.rarity {
+  color: #8f5a33;
+  border-color: #8f5a33;
+}
+
+/* ── 结算 ── */
+.lv-root .row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.lv-root .rating {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--cream);
+  background: var(--green);
+  border: 3px solid var(--green-2);
+  border-radius: 6px;
+}
+
+.lv-root .rating.S {
+  color: #241a12;
+  background: var(--gold);
+  border-color: #8f5a33;
+}
+
+.lv-root .rating.A {
+  background: var(--green);
+}
+
+.lv-root .rating.B {
+  background: var(--blue);
+  border-color: #1b3a6b;
+}
+
+.lv-root .rating.C {
+  background: #6e7686;
+  border-color: #454b57;
+}
+
+.lv-root .metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 0;
+  padding: 9px 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--cream-2);
+  border: 2px solid var(--line);
+  border-radius: 5px;
+}
+
+.lv-root .metrics b {
+  color: var(--ink);
+}
+
+/* ── 暂停菜单 ── */
+.lv-root .manual {
+  margin: 0 0 10px;
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.9;
+}
+
+.lv-root .manual li b {
+  color: var(--green-2);
+}
+
+.lv-root .gtag {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+}
+
+.lv-root .keys {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.lv-root .keys > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+
+.lv-root .keys span {
+  color: var(--ink);
+}
+
+.lv-root kbd {
+  padding: 1px 6px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--cream-3);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+}
+
+.lv-root .pause-progress {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  background: var(--cream-2);
+  border: 2px solid var(--line);
+  border-radius: 5px;
+}
+
+.lv-root .pause-progress b {
+  color: var(--ink);
+}
+
+.lv-root .pause-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 12px 0 0;
+  font-size: 11px;
+  line-height: 1.8;
+  color: var(--ink-2);
+}
+
+.lv-root .pause-note img {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+/* ── 弹窗里的按钮（**只作用于弹窗**，别碰右下角的"跳过这一关"） ── */
+.lv-root .modal button,
+.lv-root .overlay button {
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--green-4);
+  border: 2px solid var(--green-2);
+  border-radius: 4px;
+}
+
+.lv-root .modal button.ghost,
+.lv-root .overlay button.ghost {
+  color: var(--ink-2);
+  background: var(--cream-2);
+  border-color: var(--line);
+}
+
+.lv-root .modal button:disabled,
+.lv-root .overlay button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.lv-root .modal button:not(:disabled):hover,
+.lv-root .overlay button:not(:disabled):hover {
+  border-color: var(--green);
+  filter: brightness(1.04);
+}
+
+/* 窄屏：弹窗别顶满，留点边 */
+@media (max-width: 720px) {
+  .lv-root .modal {
+    width: min(400px, 94vw);
+    padding: 14px 16px;
+  }
+  .lv-root .modal h2 {
+    font-size: 17px;
+  }
+  .lv-root .rating {
+    width: 46px;
+    height: 46px;
+    font-size: 24px;
+  }
+}
+
+
+/* ═══════════ 移动端操作：虚拟摇杆 + 动作键 ═══════════
+   ⚠️ 这是"手机上唯一能玩"的东西：原来小游戏只读键盘，移动端一步都走不动。
+      摇杆和按键都压在画布下缘（和沙漏/技能卡同一带，那片是墙根空地），
+      并且都设了 touch-action:none —— 不然拖动会被浏览器当成滚动/缩放页面。 */
+
+/* 摇杆样式在全局 styles.css 的 .vt-stick（地图和小游戏共用同一个组件） */
+
+.lv-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 16px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  z-index: 8;
+}
+
+.lv-act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(247, 239, 221, 0.92);
+  border: 3px solid var(--green-2);
+  color: var(--ink);
+  font: inherit;
+  box-shadow: 0 3px 0 rgba(36, 26, 18, 0.28);
+  touch-action: none;
+  user-select: none;
+}
+
+.lv-act:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(36, 26, 18, 0.28);
+}
+
+.lv-act b {
+  font-size: 17px;
+  line-height: 1;
+}
+
+.lv-act span {
+  font-size: 10px;
+  color: #6b5a45;
+}
+
+/* E 是主键：最大、最绿、在右手拇指最舒服的位置 */
+.lv-act.e {
+  width: 76px;
+  height: 76px;
+  background: var(--green-2);
+  color: #f7efdd;
+  border-color: #1f5c39;
+}
+
+.lv-act.e span {
+  color: #d8ead9;
+}
+
+.lv-act.q,
+.lv-act.gear,
+.lv-act.rule {
+  width: 46px;
+  height: 46px;
+}
+
+/* 「?」规则键：和齿轮同尺寸，但换个颜色把它和"设置"分开（一个改设置、一个看规则） */
+.lv-act.rule {
+  border-color: #2f5d3a;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.lv-act.gear {
+  align-self: flex-start;
+  font-size: 18px;
+  border-color: #8f5a33;
+}
+
+/* 触屏上把沙漏和技能卡抬到按键/摇杆上方，免得打架 */
+.lv-touch .lv-hour {
+  bottom: 150px;
+}
+
+.lv-touch .lv-cardbar {
+  bottom: 148px;
+  left: 10px;
+}
+
+/* 触屏上动作键会占掉右下角，所以窄屏时沙漏缩一点 */
+.lv-touch .lv-hour-img {
+  width: 26px;
+  height: 26px;
+  /*
+   * ⚠️⚠️ **必须按竖排表算**：宽 26 / 高 260（10 帧上下叠）。
+   *    这里原来写的是 `260px 26px`（横排算法：10 帧并排）✗ ——
+   *    精灵表早就换成竖排的 `hourglass_v.png` 了，于是**手机上沙漏整个是空白的**
+   *    （用户报的「倒计时左侧的沙漏动画没有显示」就是这个）。
+   *    PC 端没这个问题，是因为 PC 走的是上面那条基础规则 ✔ —— 所以只有手机看不见 ✗
+   */
+  background-size: 26px 260px;
+  --总高: 260px;
+}
+
+
+/* ═══════════ 竖屏提示横过来（关卡） ═══════════
+   ⚠️ 竖屏时关卡是 12×21 的细长条，工位和任务条都很挤；横屏是 26×9 的宽版，
+      和 PC 一致。所以竖屏先给这张提示（可以点"仍然竖屏玩"跳过）。 */
+
+.lv-rotate {
+  position: absolute;
+  inset: 0;
+  /* ⚠️ 必须**高于开场简报弹层**（那个也是 60）—— 否则进关卡第一眼看到的是简报、
+     横屏提示被压在底下（实测踩到）。要让人先看到"把手机横过来"。 */
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(20, 22, 28, 0.86);
+}
+
+.lv-rotate-box {
+  max-width: 340px;
+  padding: 20px 18px;
+  background: #f7efdd;
+  border: 3px solid var(--green-2);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: var(--ink);
+  text-align: center;
+}
+
+.lv-rotate-box h2 {
+  margin: 0 0 8px;
+  font-size: 20px;
+}
+
+.lv-rotate-box p {
+  margin: 0 0 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #5a4a38;
+}
+
+/* 一个"手机转 90 度"的小动画：竖着的手机慢慢转成横的 */
+.lv-rotate-pic {
+  display: grid;
+  place-items: center;
+  height: 74px;
+  margin-bottom: 10px;
+}
+
+.lv-rotate-phone {
+  display: block;
+  width: 28px;
+  height: 50px;
+  border: 3px solid var(--green-2);
+  border-radius: 6px;
+  background: #fffdf6;
+  animation: 转手机 1.8s ease-in-out infinite;
+}
+
+@keyframes 转手机 {
+  0%,
+  35% {
+    transform: rotate(0deg);
+  }
+  60%,
+  100% {
+    transform: rotate(-90deg);
+  }
+}
+
+.lv-rotate-skip {
+  appearance: none;
+  padding: 8px 16px;
+  border: 2px solid var(--green-2);
+  border-radius: 8px;
+  background: #fffdf6;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: none;
+}
+
+
+/* ═══════════ 过场动画（文档第 0/1/3 条） ═══════════
+   ⚠️ z-index 400：要盖住顶部提醒（300）和所有弹层。 */
+
+.gc-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background-color: #10140d;
+  background-image: url('./assets/wallpaper_rail.png');
+  background-size: 512px 512px;
+  image-rendering: pixelated;
+  animation: 过场淡入 0.35s ease-out both;
+}
+
+.gc-box {
+  /* ⚠️ 必须显式写字体：这一层是 fixed 的全局层，没继承到 .wechat 那套像素字体，
+     不写的话过场字幕会用系统无衬线体（和别的界面不是一套字）。 */
+  font-family: 'ArkPixel', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  max-width: 520px;
+  padding: 22px 26px;
+  background: rgba(16, 20, 13, 0.82);
+  border: 3px solid var(--green-2);
+  border-radius: 10px;
+  text-align: center;
+  animation: 过场上浮 0.45s ease-out both;
+}
+
+.gc-pic {
+  width: 96px;
+  height: 96px;
+  image-rendering: pixelated;
+}
+
+.gc-title {
+  color: #f7efdd;
+  font-size: 24px;
+  letter-spacing: 2px;
+}
+
+.gc-sub {
+  max-width: 420px;
+  color: #cbbfa6;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.gc-bar {
+  width: 220px;
+  height: 6px;
+  margin-top: 8px;
+  background: rgba(247, 239, 221, 0.18);
+  border: 1px solid rgba(247, 239, 221, 0.3);
+  overflow: hidden;
+}
+
+.gc-bar i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--green-4);
+  animation-name: 过场走条;
+  animation-timing-function: linear;
+  animation-fill-mode: forwards;
+}
+
+@keyframes 过场淡入 {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes 过场上浮 {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes 过场走条 {
+  from { width: 0; }
+  to { width: 100%; }
+}
+
+
+/* ═══════════ 过场里的沙漏（和关卡里同一套：帧 + 上下反转跳动） ═══════════ */
+
+/* 外框只是占位，**不做动画**（反转只在沙漏图上 —— 卡片和文字不跟着翻） */
+.gc-glass-box {
+  display: block;
+  margin-bottom: 4px;
+}
+
+/* 沙漏图：走帧 + 每帧反转（和小游戏那枚**完全同一套**） */
+.gc-glass {
+  display: block;
+  width: 64px;
+  height: 64px;
+  /* ⚠️ 图**不在这里写**：相对路径在打包后会指到 /刘看山/assets/assets/… 去（404）。
+     由 过场.tsx 用 document.baseURI 拼绝对路径内联进来。 */
+  background-repeat: no-repeat;
+  /* ⚠️ 同样是**竖排表**（64×640），走帧才是纵向的 */
+  background-size: 64px 640px;
+  --总高: 640px;
+  image-rendering: pixelated;
+  animation-name: 沙漏走帧, 沙漏变面;
+  /* 走帧一个循环、变面两个循环（和小游戏那枚完全一致） */
+  animation-duration: 2.2s, 4.4s;
+  animation-timing-function: steps(10), step-end;
+  animation-iteration-count: infinite, infinite;
+}
+
+
+/* ═══════════ 过场层配色：**和游戏其它界面一套**（纸感卡 + 墨字，不再用绿底绿卡） ═══════════ */
+
+.gc-layer {
+  /* 深色遮罩（不再铺绿色壁纸） */
+  background-color: rgba(24, 20, 16, 0.9);
+  background-image: none;
+}
+
+.gc-box {
+  background: var(--cream);
+  border: 3px solid var(--ink);
+  color: var(--ink);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+
+.gc-title {
+  color: var(--ink);
+}
+
+.gc-sub {
+  color: #5a4a38;
+}
+
+.gc-bar {
+  background: rgba(36, 26, 18, 0.14);
+  border-color: rgba(36, 26, 18, 0.3);
+}
+
+.gc-bar i {
+  background: var(--ink);
+}
+
+
+/* 「开始游戏 ▸」：挡板上的主按钮（点了会强制横屏） */
+.lv-rotate-go {
+  appearance: none;
+  margin-bottom: 8px;
+  padding: 11px 22px;
+  border: 3px solid var(--ink);
+  border-radius: 10px;
+  background: var(--green-4);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: none;
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+.lv-rotate-go:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--ink);
+}
+
+
+/* ═══════════ 第十二轮修正 ═══════════ */
+
+/* ⚠️ 摇杆头**必须不吃指针事件**：底盘用 offsetX/offsetY 算方向，
+   如果事件目标是圆头、offsetX 就是"相对圆头"的 ✗（而且横板旋转下更乱） */
+.vt-stick-knob {
+  pointer-events: none;
+}
+
+/* 任务条右上角：**沙漏 + 秒数并排**（用户要求把沙漏挪过来和倒计时合并） */
+.lv-clock {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+
+/* ═══════════ 液态玻璃按钮（用户要求：**不要绿色、不要米白**） ═══════════
+   ⚠️ 这一块是**覆盖**：上面那些绿/米白是早先的主题色，这里统一换成半透明玻璃。
+      用 !important 是刻意的 —— 要压过好几处按状态写的规则（.low / .on / :active）。 */
+
+.lv-act,
+.lv-skillcard,
+.lv-skip,
+.lv-rotate-go,
+.lv-rotate-skip {
+  background: rgba(255, 255, 255, 0.16) !important;
+  backdrop-filter: blur(14px) saturate(1.6);
+  -webkit-backdrop-filter: blur(14px) saturate(1.6);
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  box-shadow:
+    0 8px 22px rgba(16, 20, 13, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  color: #1b1b20 !important;
+}
+
+/* 主键（E）：玻璃更厚一点、边缘更亮，仍然是玻璃，不是绿色 */
+.lv-act.e {
+  background: rgba(255, 255, 255, 0.3) !important;
+  border-color: rgba(255, 255, 255, 0.78) !important;
+  color: #10140d !important;
+  box-shadow:
+    0 10px 26px rgba(16, 20, 13, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.75) !important;
+}
+
+.lv-act span,
+.lv-act.e span {
+  color: #3a3a40 !important;
+}
+
+.lv-act.gear,
+.lv-act.rule {
+  border-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+/* 按下时"压一下就化开"的玻璃手感 */
+.lv-act:active,
+.lv-skillcard:active,
+.lv-rotate-go:active,
+.lv-rotate-skip:active {
+  background: rgba(255, 255, 255, 0.32) !important;
+}
+
+
+.lv-rotate-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8a7f6d;
+}
+
+
+/* ═══════════ 工单：剩余时间 + 超时前的红框脉冲 ═══════════
+   ⚠️ 用户要求：「**边框变红**的动画，变红后就消失同时扣除对应合理的分数」。 */
+
+.lv-card-left {
+  font-size: 11px;
+  color: #7a6a55;
+  margin-left: 4px;
+}
+
+.lv-card.urgent {
+  border-color: #e0483a !important;
+  animation: 工单告急 0.62s ease-in-out infinite;
+}
+
+.lv-card.urgent .lv-card-left {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+@keyframes 工单告急 {
+  0%,
+  100% {
+    border-color: #e0483a;
+    box-shadow: 0 0 0 0 rgba(224, 72, 58, 0.45);
+  }
+  50% {
+    border-color: #ff8d7d;
+    box-shadow: 0 0 0 5px rgba(224, 72, 58, 0.22);
+  }
+}
+
+
+/* ═══════════ 右上角的两颗工具键：⚙ 设置 / ↻ 重开本关 ═══════════
+   ⚠️ 用户要求：「设置也移动到右上角」「? 是重新开始，修复也移动到右上角」 */
+
+.lv-tools {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: 10px;
+}
+
+.lv-tool {
+  appearance: none;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  touch-action: none;
+  /* 和右下角那排一样：半透明液态玻璃，不要绿也不要米白 */
+  background: rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(12px) saturate(1.5);
+  -webkit-backdrop-filter: blur(12px) saturate(1.5);
+  border: 1px solid rgba(255, 255, 255, 0.55) !important;
+  border-radius: 9px;
+  box-shadow:
+    0 4px 12px rgba(16, 20, 13, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
+  color: #1b1b20 !important;
+}
+
+.lv-tool:active {
+  background: rgba(255, 255, 255, 0.34) !important;
+  transform: translateY(1px);
+}
+
+
+/* ═══════════ 任务条布局修正（用户报："手上/帮手被工单卡遮挡"） ═══════════
+   ⚠️ 根因：上一轮把 `.lv-orders` 改成 `nowrap`（要求"工单只排一排"），
+      可**同一排里还塞着"手上/帮手"块** ✗ —— 不换行就被工单卡挤到重叠 ✔
+   修法：两块都 `flex: none`（都不许被压缩），放不下就让整排横向滚 ✔
+      并把卡片调小一点，尽量一排全装下 ✔ */
+
+.lv-cards {
+  flex: none;
+}
+
+.lv-extra {
+  flex: none;
+}
+
+/* 工单卡收小：小屏上三张 + 手上 + 帮手才塞得进一排 */
+.lv-card {
+  padding: 4px 7px;
+  gap: 3px;
+}
+
+.lv-card-top b {
+  font-size: 12px;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 10px;
+}
+
+/* 工序小徽章也收一点 */
+.lv-step {
+  padding: 1px 4px;
+  font-size: 10px;
+}
+
+/* 手上/帮手那一块：窄一点、别抢地方 */
+.lv-carry {
+  padding: 3px 6px;
+}
+
+.lv-carry-name {
+  font-size: 11px;
+}
+
+/* 动作键簇：小屏上别互相压（用户报"右边的几个按钮被遮挡"） */
+.lv-actions {
+  gap: 8px;
+}
+
+
+/* ═══════════ 关卡里的弹窗：内容超过屏幕要能滚（用户报"设置内容超出屏幕"） ═══════════
+   ⚠️ 手机上（尤其横板转 90° 之后）弹窗比屏幕高，原来既不限高也不能滚 ✗
+      → 底部的按钮直接看不见、点不到 ✔ */
+.lv-root .modal,
+.lv-root .overlay .modal {
+  max-height: 88vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 弹窗里的按钮行：小屏上别被挤没 */
+.lv-root .modal .row {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+
+/* ═══════════ 队友状态：放大 + 横着排（用户要求） ═══════════
+   ⚠️ 用户说"小鹿的状态显示太小，放大点、横着显示，因为可以左右滑动不用担心不够用" ——
+      任务条本来就能横向滚（.lv-orders 是 nowrap + overflow-x:auto），所以**放心放大** ✔ */
+
+.lv-helper {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 11px;
+  border-width: 2px;
+}
+
+.lv-helper-who {
+  font-size: 15px;
+}
+
+.lv-helper-do {
+  font-size: 13px;
+}
+
+/* 「手上空」那一块也一起放大，两块看着才是一套 */
+.lv-carry {
+  padding: 6px 10px;
+}
+
+.lv-carry-name {
+  font-size: 15px;
+}
+
+.lv-carry-steps {
+  gap: 4px;
+}
+
+
+/* ═══════════ 任务条：继续缩小，保证三行都完整（用户要求） ═══════════ */
+
+.lv-card {
+  padding: 3px 6px;
+  gap: 2px;
+  border-width: 2px;
+}
+
+.lv-card-top b {
+  font-size: 11px;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 9px;
+}
+
+.lv-step {
+  padding: 0 3px;
+  font-size: 9px;
+}
+
+.lv-carry,
+.lv-helper {
+  padding: 3px 7px;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 12px;
+}
+
+.lv-helper-do {
+  font-size: 11px;
+}
+
+.lv-orders {
+  gap: 6px;
+}
+
+.lv-top-line {
+  gap: 6px;
+}
+
+
+/* ═══════════ 任务条：**每行固定尺寸**（用户要求） ═══════════
+   ⚠️ 用户报「后面随着变化就开始相互挤压重叠」，要求「**每行直接固定大小宽度，
+      不要因为后面新增或者变化的数据撑大**」——
+   所以这里不再依赖内容自适应 ✗，而是：
+     · 每一块给**固定宽度**（flex: 0 0 Npx，既不许涨也不许缩 ✔）
+     · 文字**超出一律省略号**（nowrap + hidden + ellipsis ✔）
+       → 内容再长也撑不开、也不会顶到邻居 ✔
+     · 整条任务条的高度本来就由 尺寸.顶高 固定（150 起 ✔）
+   ⚠️ 以后加字段，**先在这里给它一个固定宽度**，别让它自然撑开 ✗ */
+
+/* ── 第一行：标题 / 交稿 / 提示 / 时钟 / 工具键 ── */
+.lv-top-line {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.lv-tag {
+  flex: 0 0 auto;
+}
+
+.lv-title {
+  flex: 0 0 210px;
+  max-width: 210px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-prog {
+  flex: 0 0 116px;
+  max-width: 116px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-sub {
+  flex: 0 0 250px;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-clock {
+  flex: 0 0 104px;
+  max-width: 104px;
+  overflow: hidden;
+}
+
+/* ── 第二行：工单卡（固定宽度，内容超了省略号） ── */
+.lv-orders {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.lv-cards {
+  flex: 0 0 auto;
+}
+
+.lv-card {
+  flex: 0 0 186px;
+  width: 186px;
+  max-width: 186px;
+  overflow: hidden;
+}
+
+.lv-card-top {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.lv-card-top b {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.lv-card-type {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lv-card-steps {
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* ── 手上 / 队友状态：也是固定宽度 ── */
+.lv-carry {
+  flex: 0 0 150px;
+  max-width: 150px;
+  overflow: hidden;
+}
+
+.lv-helper {
+  flex: 0 0 176px;
+  max-width: 176px;
+  overflow: hidden;
+}
+
+.lv-carry-name,
+.lv-helper-who,
+.lv-helper-do {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lv-carry-steps {
+  flex-wrap: wrap;
+  overflow: hidden;
+}
+
+
+/* ═══════════ 三行再缩小：把画面让出来（用户要求） ═══════════ */
+
+.lv-card {
+  flex: 0 0 146px;
+  width: 146px;
+  max-width: 146px;
+  padding: 2px 5px;
+  gap: 1px;
+}
+
+.lv-card-top b {
+  font-size: 10px;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 8px;
+}
+
+.lv-step {
+  padding: 0 2px;
+  font-size: 8px;
+}
+
+.lv-title {
+  flex: 0 0 168px;
+  max-width: 168px;
+  font-size: 12px;
+}
+
+.lv-prog {
+  flex: 0 0 92px;
+  max-width: 92px;
+  font-size: 11px;
+}
+
+.lv-sub {
+  flex: 0 0 190px;
+  max-width: 190px;
+  font-size: 11px;
+}
+
+.lv-carry,
+.lv-helper {
+  flex: 0 0 118px;
+  max-width: 118px;
+  padding: 2px 6px;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 11px;
+}
+
+.lv-helper-do {
+  font-size: 10px;
+}
+
+.lv-top-line {
+  min-height: 26px;
+}
+
+
+/* ═══════════ 移动端横屏：上 4 行（每行 1/4）+ 下 2/3 画面 ═══════════
+   ⚠️ 用户要求：「移动端的横屏页面上下分为 **4:8**，上面**四行**显示、每行占 1，
+      游戏画面占 8，**所有都要完整展示，不要挤压**；空间不足就把内容**缩小**」——
+   所以这里把任务条改成**四行竖排** ✔：
+     ① 标题 / 交稿 / 时钟 / 工具键（.lv-top-line）
+     ② 工单卡一排（.lv-cards）
+     ③ 手上空 + 工序（.lv-carry）
+     ④ 队友状态（.lv-helper）
+   ⚠️ 原来是"卡 + 手上/队友挤在同一排" ✗ —— 那才是"相互挤压重叠"的老根 ✔ */
+
+.lv-top {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.lv-top-line {
+  flex: 0 0 auto;
+  min-height: 0;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+/* ②③④ 三行竖排（.lv-extra 原来是 display:contents，把手上/队友摊进了卡那一排 ✗） */
+.lv-orders {
+  flex: 1 1 auto;
+  min-height: 0;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.lv-cards {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-height: 0;
+}
+
+.lv-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 四行各自压缩：高度不够优先缩高度和字号，不换行、不溢出 */
+.lv-card {
+  flex: 0 0 150px;
+  width: 150px;
+  max-width: 150px;
+  padding: 1px 5px;
+  gap: 0;
+}
+
+.lv-card-top b {
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 8px;
+  line-height: 1.1;
+}
+
+.lv-step {
+  padding: 0 2px;
+  font-size: 8px;
+  line-height: 1.2;
+}
+
+.lv-carry,
+.lv-helper {
+  flex: 0 0 auto;
+  max-width: none;
+  padding: 1px 7px;
+  gap: 4px;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+.lv-helper-do {
+  font-size: 10px;
+  line-height: 1.2;
+}
+
+.lv-carry-steps {
+  gap: 3px;
+  overflow: hidden;
+}
+
+/* ⚠️ 沙漏"只显示一半"：它必须是**正方形**，而且所在行不许把它压扁 ✔
+   （原来宽度 26 / 高度被行高挤掉 → 下半截被裁 ✔） */
+.lv-clock {
+  flex: 0 0 auto;
+  height: 100%;
+  max-height: none;
+  min-height: 22px;
+}
+
+.lv-hour-img {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  background-size: 22px 220px;
+  --总高: 220px;
+}
+
+
+/* ═══════════ 四行：再压一轮，保证四行都"完整"（不是被裁） ═══════════
+   ⚠️ 实测四行合计 137px、可用只有 130px（390 高的横板 → 4/12）✗
+      → 按用户要求「空间不足就**缩小内容**」：把行高和字号再收一档 ✔ */
+
+.lv-top-line {
+  height: 26px;
+}
+
+.lv-top-line .lv-title {
+  font-size: 11px;
+}
+
+.lv-top-line .lv-prog,
+.lv-top-line .lv-sub {
+  font-size: 10px;
+}
+
+.lv-cards {
+  height: 30px;
+}
+
+.lv-card {
+  height: 100%;
+  padding: 0 4px;
+}
+
+.lv-card-top b {
+  font-size: 9px;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 7px;
+}
+
+.lv-step {
+  font-size: 7px;
+  padding: 0 1px;
+}
+
+.lv-extra {
+  height: 30px;
+}
+
+.lv-carry,
+.lv-helper {
+  height: 14px;
+  padding: 0 5px;
+  gap: 3px;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 9px;
+  line-height: 14px;
+}
+
+.lv-helper-do {
+  font-size: 8px;
+  line-height: 14px;
+}
+
+.lv-carry-steps {
+  gap: 2px;
+}
+
+.lv-carry-steps .lv-step {
+  font-size: 7px;
+  line-height: 12px;
+}
+
+.lv-hour-img {
+  width: 20px;
+  height: 20px;
+  background-size: 20px 200px;
+  --总高: 200px;
+}
+
+
+/* ⚠️ 第一行（标题 / 交稿 / 提示 / 时钟 / 两个工具键）实测 26px 装不下 ✗ → 给 32px
+   并把工具键收到 22×22、时钟随行高 ✔（四行合计仍在 4/12 之内 ✔） */
+.lv-top-line {
+  height: 32px;
+  align-items: center;
+}
+
+.lv-tool {
+  width: 22px;
+  height: 22px;
+  font-size: 13px;
+  border-radius: 7px;
+}
+
+.lv-tools {
+  gap: 4px;
+  margin-left: 6px;
+}
+
+.lv-clock {
+  height: 22px;
+}
+
+.lv-hour-img {
+  width: 20px;
+  height: 20px;
+  background-size: 20px 200px;
+  --总高: 200px;
+}
+
+
+/* ═══════════ 【最终覆盖】四行用 CSS Grid 强制 4 等分 ═══════════
+   ⚠️⚠️ 用户报「上面四行有挤压、信息看不完整」——根因是我前面几轮**一层层追加**的
+       CSS 前后打架 ✗（.lv-extra 的 display:contents、.lv-orders 的 flex-direction、
+       各处 flex-basis/字号互相覆盖 ✔）。
+   这次改成**结构性**做法：
+     · .lv-top 直接是 **grid + 4 个等分轨道** ✔ → 每行严格占 1/4，谁也撑不大 ✔
+     · 中间的 .lv-orders / .lv-extra 用 display:contents **摊平** ✗
+       （它们本来就是"容器"，摊平后四块（标题行/工单卡/手上/队友）直接成为 grid 子项 ✔）
+     · 所有文字：nowrap + ellipsis，超了**省略**，绝不换行、绝不顶开邻居 ✔
+   下面游戏画面**一行都不动** ✔（顶高仍是 4/12 ✔）。 */
+
+.lv-top {
+  display: grid !important;
+  grid-template-rows: repeat(4, minmax(0, 1fr)) !important;
+  gap: 1px !important;
+  overflow: hidden !important;
+  padding: 2px 4px !important;
+}
+
+.lv-top * {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 0;
+}
+
+.lv-orders,
+.lv-extra {
+  display: contents !important;
+}
+
+/* 四块各自：铺满自己的那一行，内部横向排、绝不换行 */
+.lv-top-line,
+.lv-cards,
+.lv-carry,
+.lv-helper {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 5px !important;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100% !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  padding: 0 4px !important;
+  overflow: hidden !important;
+}
+
+/* 文字：一律不换行，超了省略（这是"不挤压"的关键 ✗） */
+.lv-top-line *,
+.lv-cards *,
+.lv-carry *,
+.lv-helper * {
+  white-space: nowrap !important;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* 不许被压扁的元素 */
+.lv-tag,
+.lv-hour-img,
+.lv-tool,
+.lv-step {
+  flex: 0 0 auto !important;
+}
+
+/* 字号按"行高只有约 30px"来定，保证一屏能看全 */
+.lv-top-line .lv-title {
+  font-size: 12px !important;
+}
+.lv-top-line .lv-prog,
+.lv-top-line .lv-sub {
+  font-size: 11px !important;
+}
+.lv-cards .lv-card-top b {
+  font-size: 10px !important;
+}
+.lv-cards .lv-card-type,
+.lv-cards .lv-card-pts,
+.lv-cards .lv-card-left,
+.lv-cards .lv-step {
+  font-size: 8px !important;
+}
+.lv-carry .lv-carry-name,
+.lv-helper .lv-helper-who {
+  font-size: 11px !important;
+}
+.lv-helper .lv-helper-do {
+  font-size: 10px !important;
+}
+
+/* 工单卡：固定宽度 + 不换行（内容超了省略） */
+.lv-cards .lv-card {
+  flex: 0 0 132px !important;
+  width: 132px !important;
+  height: 100% !important;
+  padding: 1px 4px !important;
+  overflow: hidden !important;
+}
+
+.lv-cards .lv-card-steps {
+  flex-wrap: nowrap !important;
+  overflow: hidden !important;
+}
+
+/* 时钟 + 沙漏：沙漏必须完整（正方） */
+.lv-clock {
+  flex: 0 0 auto !important;
+  height: 100% !important;
+}
+.lv-hour-img {
+  width: 18px !important;
+  height: 18px !important;
+  background-size: 18px 180px !important;
+  --总高: 180px !important;
+}
+.lv-tool {
+  width: 20px !important;
+  height: 20px !important;
+  font-size: 12px !important;
+}
+
+
+/* ═══════════ 移动端：删掉「我当前的状态」和「小鹿的状态」两块 ═══════════
+   ⚠️ 用户要求：「将移动端的**我当前的状态**和**小鹿的状态**直接删除防止挤压，
+      但是要保证 **pc 端不修改正常显示**」——
+   所以这条**只作用于 .lv-touch** ✗（那个类只在**粗指针（触屏）设备**上挂 ✔，
+   桌面浏览器不会挂 ✔ → PC 端一个字都不改 ✔）。
+
+   ⚠️ 删掉两块后 grid 只剩两块 ✗，所以要把它改成 **2 等分** ✗
+      （不然会留下两条空轨道、内容还挤在上半条 ✔）。
+   ⚠️ 任务条总高度（4/12）**不动** ✔ —— 让这两行各占一半、更宽松 ✔，画面大小不变 ✔ */
+
+.lv-root.lv-touch .lv-carry,
+.lv-root.lv-touch .lv-helper {
+  display: none !important;
+}
+
+.lv-root.lv-touch .lv-top {
+  grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+}
+
+/* 手机上只剩两行，可以稍微放大一点字号，看得更清楚 ✔ */
+.lv-root.lv-touch .lv-top-line .lv-title {
+  font-size: 13px !important;
+}
+
+.lv-root.lv-touch .lv-top-line .lv-prog,
+.lv-root.lv-touch .lv-top-line .lv-sub {
+  font-size: 12px !important;
+}
+
+.lv-root.lv-touch .lv-cards .lv-card-top b {
+  font-size: 11px !important;
+}
+
+.lv-root.lv-touch .lv-cards .lv-card {
+  flex: 0 0 140px !important;
+  width: 140px !important;
+}
+
+
+/* ═══════════ 任务条：行高按内容、整体贴顶（用户要求"向上移动"） ═══════════
+   ⚠️ 用户报「将任务和下面的一行都向上移动，下面提示被遮挡」——
+   根因是我把四行做成 repeat(4, minmax(0,1fr)) **等分拉伸** ✗：
+      行被拉高 → 内容贴在中线附近 → 视觉上有空隙 ✗，
+      而底部那行提示（「现在该做什么 …」）被挤到条外/被画布压住 ✔
+   改法：**行高按内容（auto）+ 贴顶排列** ✔，条内多余的高度自然留在下面给提示 ✔ */
+
+.lv-top {
+  grid-template-rows: auto auto auto auto !important;
+  align-content: start !important;
+  row-gap: 3px !important;
+}
+
+/* 手机端只剩两行，同样按内容排 ✔ */
+.lv-root.lv-touch .lv-top {
+  grid-template-rows: auto auto !important;
+}
+
+/* 四块本身：高度按内容，不用撑满轨道 ✔ */
+.lv-top-line,
+.lv-cards,
+.lv-carry,
+.lv-helper {
+  height: auto !important;
+  max-height: none !important;
+}
+
+.lv-top-line {
+  min-height: 26px;
+}
+
+.lv-cards {
+  min-height: 30px;
+}
+
+/* 底部那行提示：不许被压、要完整 ✔ */
+.lv-tip,
+.lv-hint,
+.lv-help {
+  flex: 0 0 auto !important;
+  min-height: 0;
+  overflow: visible !important;
+}
+
+
+/* ═══════════ 游戏画面紧贴上面的提示（用户要求：贴住但不重叠） ═══════════
+   ⚠️ 原来 .lv-root 是 flex 列 + gap，任务条和画布之间留了十来像素 ✗ —— 用户要求贴住 ✔
+   做法：外层 gap 归零、画布自己的 margin/padding 也归零 ✔
+   （**不重叠**：任务条高度就是 4/12，画布从它正下方开始 ✔） */
+
+.lv-root {
+  gap: 0 !important;
+  row-gap: 0 !important;
+}
+
+.lv-top {
+  margin-bottom: 0 !important;
+}
+
+.lv-stage {
+  margin: 0 !important;
+  padding: 0 !important;
+  gap: 0 !important;
+}
+
+
+/* ═══════════ 任务条压到 1/6：四行按内容、尽量矮（用户要求画面尽量大） ═══════════
+   ⚠️ 顶高已经在 JS 里改成 2/12 ✔，这里只负责让**四行装得下**（不裁不挤 ✗） */
+
+.lv-top {
+  padding: 1px 4px !important;
+  row-gap: 2px !important;
+}
+
+.lv-top-line {
+  min-height: 20px;
+}
+
+.lv-top-line .lv-title {
+  font-size: 12px !important;
+  line-height: 1.1;
+}
+
+.lv-top-line .lv-prog,
+.lv-top-line .lv-sub {
+  font-size: 10px !important;
+  line-height: 1.1;
+}
+
+.lv-cards {
+  min-height: 24px;
+}
+
+.lv-cards .lv-card {
+  padding: 0 4px !important;
+}
+
+.lv-cards .lv-card-top b {
+  font-size: 10px !important;
+  line-height: 1.05;
+}
+
+.lv-cards .lv-card-type,
+.lv-cards .lv-card-pts,
+.lv-cards .lv-card-left {
+  font-size: 8px !important;
+  line-height: 1.05;
+}
+
+.lv-cards .lv-step {
+  font-size: 8px !important;
+  line-height: 1.15;
+}
+
+.lv-carry,
+.lv-helper {
+  min-height: 14px;
+  padding: 0 5px !important;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 10px !important;
+  line-height: 1.15;
+}
+
+.lv-helper-do {
+  font-size: 9px !important;
+  line-height: 1.15;
+}
+
+/* ⚠️ 画面：居中 + 多余空间**留白**（不拉伸 ✗）—— 比例不合时靠这个 ✔ */
+.lv-stage {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  overflow: hidden;
+}
+
+
+/* ═══════════ 恢复「宽松版」（用户给的第二张图） ═══════════
+   ⚠️ 上一轮我按「画面尽量大」把任务条压到 1/6、字号也缩了 ✗
+      → 卡片被截成「阿麦·…」、工序块和手上空**叠在一起** ✔（用户截图 1 就是那样 ✗）
+   用户给了对比图，要第二张那种宽松版 ✔ —— 这里逐条恢复，
+   并且**移动端也用同一套**（同比例放大缩小 ✗ 不合适就留白 ✔） */
+
+/* ① 手机上**取消隐藏**手上/队友两块（用户要求移动端也是这样 ✔） */
+.lv-root.lv-touch .lv-carry,
+.lv-root.lv-touch .lv-helper {
+  display: flex !important;
+}
+
+/* ② 四行（手机也是四行 ✔） */
+.lv-top,
+.lv-root.lv-touch .lv-top {
+  grid-template-rows: auto auto auto auto !important;
+  row-gap: 3px !important;
+  padding: 2px 5px !important;
+}
+
+/* ③ 卡片恢复宽度与字号（不再截断成「阿麦·…」✗） */
+.lv-cards .lv-card,
+.lv-card {
+  flex: 0 0 186px !important;
+  width: 186px !important;
+  max-width: 186px !important;
+  padding: 2px 6px !important;
+  gap: 2px !important;
+}
+
+.lv-card-top b {
+  font-size: 11px !important;
+  line-height: 1.15 !important;
+}
+
+.lv-card-type,
+.lv-card-pts,
+.lv-card-left {
+  font-size: 9px !important;
+  line-height: 1.15 !important;
+}
+
+.lv-step {
+  font-size: 9px !important;
+  line-height: 1.2 !important;
+  padding: 0 3px !important;
+}
+
+/* ④ 手上 / 队友：字号回到看得清的大小 */
+.lv-carry,
+.lv-helper {
+  padding: 3px 8px !important;
+  gap: 6px !important;
+}
+
+.lv-carry-name,
+.lv-helper-who {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}
+
+.lv-helper-do {
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+}
+
+/* ⑤ 标题行 */
+.lv-top-line .lv-title {
+  font-size: 13px !important;
+}
+
+.lv-top-line .lv-prog,
+.lv-top-line .lv-sub {
+  font-size: 11px !important;
+}
+
+/* ⑥ ⚠️ 手机上的**说明文字太大、直接出屏** ✔ —— 单独压一档并允许省略 */
+.lv-root.lv-touch .lv-top-line .lv-title {
+  font-size: 12px !important;
+}
+
+.lv-root.lv-touch .lv-top-line .lv-prog,
+.lv-root.lv-touch .lv-top-line .lv-sub,
+.lv-root.lv-touch .lv-tip,
+.lv-root.lv-touch .lv-hint {
+  font-size: 10px !important;
+  max-width: 42vw !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.lv-tip,
+.lv-hint {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+
+/* ═══════════ 沙漏 + 倒计时：完整显示（用户报「沙漏显示补全」） ═══════════
+   ⚠️ 根因是我上一轮给时钟设了 max-width: 104px + overflow: hidden ✗
+      → 沙漏被裁一块 ✗、倒计时被截成「2..」（本该 240s ✗）✔
+   改法：时钟**不再限宽**、而且**不裁子元素** ✔；沙漏保证正方形且不许被压 ✔ */
+
+.lv-clock {
+  flex: 0 0 auto !important;
+  max-width: none !important;
+  min-width: 92px;
+  height: 100% !important;
+  overflow: visible !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+
+.lv-clock b {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: nowrap !important;
+  flex: 0 0 auto !important;
+}
+
+/* 沙漏：正方形、完整、不被压扁（竖排 10 帧 ✔） */
+.lv-hour-img {
+  width: 22px !important;
+  height: 22px !important;
+  background-size: 22px 220px !important;
+  --总高: 220px !important;
+  flex: 0 0 auto !important;
+  background-repeat: no-repeat !important;
+}
+
+/* 时钟那一行（.lv-top-line）给它留够高度，别把沙漏夹掉 */
+.lv-top-line {
+  min-height: 28px !important;
+  overflow: visible !important;
+}
+
+
+/* ═══════════ 开场简报 / 暂停菜单：在横板上不许超出屏幕（用户报的开场介绍出屏） ═══════════
+   ⚠️ 手机上整个关卡被转 90° 当横板 ✔ —— 简报卡也跟着转 ✔（一致 ✗），
+      但它的高度是"内容多高就多高"✗，一超就溢出屏幕 ✔
+   改法：**按板子的尺寸设上限 + 卡内滚动** ✔（内容再长也只在自己里面滚 ✗） */
+
+.lv-root .overlay {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  padding: 6px !important;
+  box-sizing: border-box !important;
+}
+
+.lv-root .overlay > * {
+  max-width: 100% !important;
+  max-height: 100% !important;
+  box-sizing: border-box !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* 简报卡本身：留一点边距，别顶到板子边缘 */
+.lv-root .overlay .modal,
+.lv-root .overlay .brief,
+.lv-root .overlay .lv-brief {
+  max-height: 96% !important;
+}
+
+/* 手机竖屏（横板）时，卡片内的字号压一档，少滚一点 ✔ */
+.lv-root.lv-touch .overlay .modal,
+.lv-root.lv-touch .overlay > * {
+  font-size: 13px !important;
+}
+
+.lv-root.lv-touch .overlay h2 {
+  font-size: 16px !important;
+}
+
+.lv-root.lv-touch .overlay li {
+  line-height: 1.45 !important;
+}
+

@@ -7,11 +7,12 @@
 import type { 剧本段 } from './types';
 import { 事件一 } from './opening';
 import { 事件二, 事件三 } from './events2';
+import { 事件四 } from './events3';
 
-export const 剧本: 剧本段[] = [事件一, 事件二, 事件三];
+export const 剧本: 剧本段[] = [事件一, 事件二, 事件三, 事件四];
 
 /** 每一段在会话列表里的日期标签（显示用） */
-export const 段日期 = ['入职第 1 天', '第 3 天', '第二周'];
+export const 段日期 = ['入职第 1 天', '第 3 天', '第二周', '第 6 天'];
 
 export function 取段(序号: number): 剧本段 | null {
   return 剧本[序号] ?? null;

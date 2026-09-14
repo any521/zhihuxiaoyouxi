@@ -9,7 +9,8 @@
   display: flex;
   flex-direction: column;
   background-color: var(--cream);
-  background-image: url('/assets/avg/wallpaper_chat.png');
+  /* ⚠️ 原来是写死的 `/assets/...`（绝对根路径）—— 部署到子路径会 404，改成相对路径由 Vite 改写 */
+  background-image: url('./assets/wallpaper_chat.png');
   background-size: 512px 512px;
   background-repeat: repeat;
   image-rendering: pixelated;

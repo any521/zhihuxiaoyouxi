@@ -938,3 +938,163 @@ button.ghost:hover {
   flex: none;
   margin-top: 1px;
 }
+/* ═══════════ 虚拟摇杆（地图 / 小游戏共用，见 screens/摇杆.tsx） ═══════════
+   ⚠️ 必须 touch-action:none —— 不然拖动会被浏览器当成滚动/缩放页面。 */
+
+.vt-stick {
+  position: absolute;
+  left: 14px;
+  bottom: 16px;
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: rgba(247, 239, 221, 0.55);
+  border: 3px solid rgba(47, 125, 79, 0.6);
+  z-index: 40;
+  touch-action: none;
+}
+
+.vt-stick-knob {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  border-radius: 50%;
+  background: rgba(47, 125, 79, 0.85);
+  border: 3px solid #f7efdd;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* 地图上的动作键（右下角，和摇杆对称） */
+.map-actions {
+  position: absolute;
+  right: 14px;
+  bottom: 74px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 40;
+}
+
+.map-act {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(247, 239, 221, 0.94);
+  border: 3px solid #2f7d4f;
+  color: #241a12;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  box-shadow: 0 3px 0 rgba(36, 26, 18, 0.28);
+  touch-action: none;
+}
+
+.map-act:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 rgba(36, 26, 18, 0.28);
+}
+
+.map-act small {
+  font-size: 10px;
+  font-weight: 400;
+  color: #6b5a45;
+}
+
+
+/* ═══════════ 顶部"新消息来自哪里"的提醒 ═══════════
+   ⚠️ 手机上聊天界面打开时会话列表是隐藏的，别处来消息只有一个看不见的小红点；
+      在地图/小游戏上更是完全没有提示。所以这条挂在**所有屏幕之上**。
+
+   ⚠️ 位置用 `env(safe-area-inset-top)`：刘海屏上别被状态栏盖住。 */
+
+.top-tip {
+  position: fixed;
+  left: 50%;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(92vw, 560px);
+  padding: 8px 12px;
+  background: rgba(247, 239, 221, 0.985);
+  border: 2px solid #2f7d4f;
+  border-radius: 10px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+  color: #241a12;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  animation: 顶部提醒落下 0.22s ease-out;
+}
+
+.top-tip:active {
+  transform: translateX(-50%) translateY(1px);
+}
+
+/* 从屏幕上方滑下来（比淡入更像"推送"） */
+@keyframes 顶部提醒落下 {
+  from {
+    transform: translate(-50%, -140%);
+    opacity: 0;
+  }
+  to {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+}
+
+.top-tip-app {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #2f7d4f;
+  color: #f7efdd;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.top-tip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.top-tip-who {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+/* 预览一行，长了截断（不换行，免得横幅变成两行盖住画面） */
+.top-tip-text {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #5a4a38;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.top-tip-go {
+  flex: none;
+  margin-left: auto;
+  padding-left: 4px;
+  color: #2f7d4f;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+
+/* ⚠️ 摇杆头不吃指针事件（见 关卡.css 同名注释） */
+.vt-stick-knob { pointer-events: none; }

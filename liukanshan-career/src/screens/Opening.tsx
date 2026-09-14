@@ -72,7 +72,7 @@ export function Opening(): ReactElement {
 
       <button
         className="opening-skip"
-        onMouseEnter={() => 播放('选项悬停')}
+       
         onClick={(e) => {
           e.stopPropagation();
           播放('按钮');

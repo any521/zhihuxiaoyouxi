@@ -199,7 +199,9 @@
   padding: 14px 0 12px;
   background-color: var(--green);
   /* 深绿底纹：256 的瓦片放大 2 倍铺，保持像素方块感 */
-  background-image: url('/assets/avg/wallpaper_rail.png');
+  /* ⚠️ 这里原来是写死的 `/assets/...`（绝对根路径）—— 部署到 `/刘看山/` 子路径下会 404。
+     改成相对路径后由 Vite 在处理时改写成带 base 的正确 URL（dev 和线上都对）。 */
+  background-image: url('./assets/wallpaper_rail.png');
   background-size: 512px 512px;
   background-repeat: repeat;
   image-rendering: pixelated;
@@ -353,7 +355,8 @@
      划过  → 提亮 + 轻微右移（列表/选项）/ 加边框（小按钮）
      按下  → 下沉 2px、阴影收掉（"真的按下去了"）
      键盘  → 焦点环
-   声音由组件侧统一挂（划过 = 选项悬停，点击 = 按钮）。 */
+   声音由组件侧统一挂（点击 = 按钮）。⚠️ 2026-09 删掉了"划过"的悬停音：
+   实测它峰值只有 9%（等于没响），而且手机上没有 hover，触屏永远不会播。 */
 
 .wc-row,
 .wc-choice,
@@ -800,7 +803,7 @@
   flex-direction: column;
   /* 聊天区底：米白 + 浅绿暗纹，256 的瓦片放大 2 倍铺 */
   background-color: var(--cream);
-  background-image: url('/assets/avg/wallpaper_chat.png');
+  background-image: url('./assets/wallpaper_chat.png');
   background-size: 512px 512px;
   background-repeat: repeat;
   image-rendering: pixelated;
@@ -1286,10 +1289,690 @@
 
   .wc-btn { width: 100%; }
 
+  /*
+   * ⚠️⚠️ 但「发言」那一行的按钮**不能占满**。
+   *    根因（用户报的"移动端输入框太小、按钮太大"）：
+   *    上面这条 `width: 100%` 是给"整屏只有一颗按钮"的场景写的（去房间/继续），
+   *    可它**同样命中了发言框里的"发送"** ✗ —— 按钮撑满整行，
+   *    输入框被挤成一条缝，看着就是"框太小、按钮太大"。
+   */
+  .wc-say .wc-btn {
+    width: auto;
+    flex: none;
+    padding: 11px 18px;
+    font-size: 15px;
+  }
+
+  /* 输入框给足高度和字号（16px 还能顺手避免 iOS 聚焦时自动放大页面）*/
+  .wc-say-input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 12px;
+    font-size: 16px;
+  }
+
   .wc-list-title,
   .wc-head-name,
   .wc-invite-title,
   .wc-zhihu-title { font-size: 24px; }
+}
 
+/* ══════════════════════════════════════════════════════════════════════
+   跑团面板（事件四 · 会议室里把需求钉死）
+   ──────────────────────────────────────────────────────────────────────
+   用户要求：「跑团剧情增加知乎 AI 不偏离剧情的丰富有趣对话」。
+   引擎（跑团.ts）与剧本（跑团脚本.ts）负责"笼子"，这块屏负责"演"：
+     掷骰 → 档位 → 作者兜底镜头（立刻上屏）→ AI 的话回来就换掉那一格文字
+   配色沿用 AVG 那一套（米白 + 绿 + 棕），保证它看起来还是同一个界面。
+   ══════════════════════════════════════════════════════════════════════ */
+
+.pt-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(20, 22, 28, 0.74);
+}
+
+.pt-panel {
+  width: min(940px, 100%);
+  max-height: min(780px, 100%);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--cream);
+  color: var(--ink);
+  border: 2px solid var(--green-2);
+  border-radius: 6px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.55);
+}
+
+.pt-head {
+  padding: 12px 16px;
+  background: var(--cream-2);
+  border-bottom: 2px solid var(--line);
+}
+
+.pt-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pt-title b {
+  font-size: 18px;
+}
+
+.pt-tag {
+  padding: 1px 7px;
+  font-size: 11px;
+  color: var(--cream);
+  background: var(--green-2);
+  border-radius: 3px;
+}
+
+.pt-goal {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.pt-prog {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 7px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.pt-prog b {
+  color: var(--ink);
+}
+
+.pt-prog .ok {
+  color: var(--green);
+}
+
+.pt-prog .bad {
+  color: var(--red);
+}
+
+.pt-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow: hidden;
+}
+
+/* 左边那块"场景"：用的是 AVG 的办公室插图，上面压一层暗罩好放字 */
+.pt-stage {
+  position: relative;
+  flex: 0 0 288px;
+  min-height: 200px;
+  background-size: cover;
+  background-position: center;
+  border: 2px solid var(--line);
+  border-radius: 4px;
+  image-rendering: pixelated;
+}
+
+.pt-stage-in {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  color: var(--cream);
+  background: linear-gradient(rgba(20, 22, 28, 0.5), rgba(20, 22, 28, 0.85));
+}
+
+.pt-stage-in b {
+  font-size: 15px;
+}
+
+.pt-todo {
+  font-size: 11px;
+  opacity: 0.72;
+}
+
+.pt-stage-in p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.pt-diff {
+  margin-top: auto;
+  font-size: 11px;
+  line-height: 1.7;
+  opacity: 0.88;
+}
+
+.pt-stream {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 回看：已经打过的轮次压成一行一行 */
+.pt-log {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pt-log li {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 6px;
+  align-items: baseline;
+  padding-left: 8px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+  border-left: 3px solid var(--line);
+}
+
+.pt-log li i {
+  grid-column: 3;
+  font-style: normal;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+.pt-log-档 {
+  padding: 0 5px;
+  font-size: 10px;
+  color: #0d0f14;
+  border-radius: 3px;
+}
+
+.pt-empty {
+  padding: 10px 2px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* 最新那一轮的结果卡 */
+.pt-r {
+  padding: 10px 12px;
+  background: #fffdf6;
+  border: 2px solid var(--line);
+  border-left-width: 5px;
+  border-radius: 4px;
+}
+
+.pt-r.new {
+  animation: pt-in 0.28s ease-out;
+}
+
+@keyframes pt-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.pt-r-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.pt-档 {
+  padding: 1px 6px;
+  font-weight: 700;
+  color: #0d0f14;
+  border-radius: 3px;
+}
+
+.pt-scene {
+  font-weight: 700;
+}
+
+.pt-dice {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: auto;
+}
+
+.pt-die {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  font-weight: 700;
+  background: var(--cream-3);
+  border: 1px solid var(--ink-2);
+  border-radius: 3px;
+}
+
+.pt-die.on {
+  color: #fff;
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.pt-mod,
+.pt-vs,
+.pt-op {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.pt-vs {
+  margin-left: 2px;
+}
+
+.pt-ai {
+  padding: 0 4px;
+  font-size: 10px;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 3px;
+}
+
+.pt-act {
+  margin: 6px 0 0;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.pt-txt {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.85;
+}
+
+/* 台词：复用 AVG 的头像 + 气泡那种感觉 */
+.pt-line {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-top: 8px;
+}
+
+.pt-face {
+  width: 32px;
+  height: 32px;
+  background: var(--cream-2);
+  border: 2px solid var(--green-2);
+  border-radius: 3px;
+  image-rendering: pixelated;
+}
+
+.pt-bubble {
+  padding: 6px 9px;
+  font-size: 13px;
+  line-height: 1.7;
+  background: var(--cream-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.pt-bubble b {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  color: var(--green-2);
+}
+
+.pt-r-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.pt-m {
+  padding: 0 4px;
+  color: var(--blue);
+  border: 1px solid var(--blue);
+  border-radius: 3px;
+}
+
+.pt-clue {
+  padding: 0 6px;
+  color: var(--ink);
+  background: var(--green-4);
+  border-radius: 3px;
+}
+
+.pt-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--cream-2);
+  border-top: 2px solid var(--line);
+}
+
+.pt-btn {
+  padding: 8px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+  background: var(--green-4);
+  border: 2px solid var(--green-2);
+  border-radius: 4px;
+}
+
+.pt-btn:disabled {
+  cursor: progress;
+  opacity: 0.62;
+}
+
+.pt-btn.done {
+  color: var(--cream);
+  background: var(--green);
+}
+
+.pt-hint {
+  flex: 1 1 200px;
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+@media (max-width: 820px) {
+  .pt-body {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .pt-stage {
+    flex: 0 0 168px;
+    min-height: 168px;
+  }
+  .pt-title b {
+    font-size: 16px;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   小游戏（工作关）左下角那条剧情条
+   ──────────────────────────────────────────────────────────────────────
+   从剧本的「开小游戏」节拍进来时才有：显示剧本给的标题 / 提示，
+   外加一个"跳过这一关"的出口（卡住了不至于把剧情堵死）。
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* 「进入工作台」那一拍：说明 + 按钮并排（聊天区底部） */
+.wc-go-level {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--cream-2);
+  border: 2px solid var(--green-2);
+  border-radius: 4px;
+}
+
+.wc-go-level-hint {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-2);
+}
+
+.wc-go-level-hint b {
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.wc-go-level-hint em {
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.wc-btn.go {
+  flex: none;
+  background: var(--green-4);
+  border-color: var(--green-2);
+  font-weight: 700;
+}
+
+.level-bar {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 55;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: min(560px, calc(100vw - 28px));
+  padding: 7px 10px;
+  font-size: 12px;
+  color: #e8eef8;
+  background: rgba(20, 22, 28, 0.86);
+  border: 1px solid #3a4358;
+  border-radius: 4px;
+}
+
+.level-tag {
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--cream);
+  background: var(--green);
+  border-radius: 3px;
+}
+
+.level-hint {
+  color: #a4acbb;
+}
+
+.level-skip {
+  padding: 3px 8px;
+  margin-left: auto;
+  font-size: 11px;
+  color: #cfd8e6;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid #6e7686;
+  border-radius: 3px;
+}
+
+.level-skip:hover {
+  color: #fff;
+  border-color: var(--green-3);
+}
+
+/* 暂停菜单里"这道工序在哪儿做"的小字 */
+.pause-where {
+  margin-left: 4px;
+  font-style: normal;
+  color: var(--ink-2);
+  opacity: 0.8;
+}
+
+@media (max-width: 720px) {
   .wc-head-hint { font-size: 12px; }
 }
+
+/* ═══════════ 手机底部功能栏（桌面端不显示）═══════════
+   ⚠️ 手机上原来把左侧功能栏整块隐藏了，于是"我的资料/通讯录/设置/更多"全没了，
+      而且 `回地图` 只绑在 Tab 键上 —— 手机上进了聊天就回不去。
+      这里用微信自己的排法：底部一条 tab 栏。 */
+
+.wc-tabbar {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .wc-tabbar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    height: 54px;
+    background-color: var(--green);
+    background-image: url('./assets/wallpaper_rail.png');
+    background-size: 512px 512px;
+    image-rendering: pixelated;
+    border-top: 2px solid var(--green-2);
+  }
+
+  .wc-tab {
+    appearance: none;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #f7efdd;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.1;
+    opacity: 0.72;
+    cursor: pointer;
+  }
+
+  .wc-tab img {
+    width: 22px;
+    height: 22px;
+    image-rendering: pixelated;
+  }
+
+  .wc-tab .wc-face {
+    width: 26px;
+    height: 26px;
+  }
+
+  .wc-tab.on {
+    opacity: 1;
+    background: rgba(47, 93, 58, 0.65);
+  }
+
+  /* 「回地图」是"退出去"，给个暖色区分开（它不是面板切换） */
+  .wc-tab.exit {
+    color: #ffd98a;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  /* 内容区给底栏让出高度，免得最后一条消息被压在栏下面 */
+  .wechat {
+    padding-bottom: 54px;
+  }
+}
+
+
+/* ═══════════ 聊天框里"等玩家自己说一句"（文档第 7 条） ═══════════ */
+
+.wc-say {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.wc-say-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.wc-say-input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 2px solid var(--green-2);
+  border-radius: 8px;
+  background: #fffdf6;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.wc-say-input:focus {
+  outline: 2px solid var(--green-4);
+  outline-offset: 1px;
+}
+
+/* 「某某撤回了一条消息」——微信里就是居中的一行小灰字 */
+.wc-recall {
+  align-self: center;
+  margin: 6px 0;
+  padding: 2px 10px;
+  color: #8a7f6d;
+  font-size: 12px;
+  text-align: center;
+}
+
+
+/* ── 知乎账号（资料卡 / 设置里那一块） ── */
+.pn-zhihu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.pn-zhihu-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+.pn-zhihu-name {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.pn-btn {
+  display: inline-block;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.14);
+  background: rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+  color: inherit;
+}
+
+.pn-btn:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+

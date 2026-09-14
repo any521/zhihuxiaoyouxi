@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 左侧功能栏的四个面板 + 个人资料卡。
  *
  * 设计原则：这些面板要**和剧情互补但不打断剧情**——
@@ -15,6 +15,8 @@ import { 头像 } from '../story/assets';
 import { useStory, type 侧栏面板 } from '../state/story';
 import { useGameStore } from '../state/store';
 import { 播放, 有声, 设声音 } from '../story/audio';
+import { 知乎账号 } from '../ui/知乎账号';
+import { 读存档 } from '../state/存档';
 import { 档案表, 取档案 } from '../story/people';
 
 /* 人物档案统一放在 ../story/people.ts，通讯录和"人物卡弹层"共用一份 */
@@ -65,6 +67,9 @@ function 资料卡内容(): ReactElement {
       </div>
 
       <div className="pn-sec">
+        {/* ⚠️ 用户要求：接知乎登录 + 在「刘看山」后面显示真实用户名 + 展示真实数据 ✔
+            接口不通（没部署/离线）时它自己整块不渲染，不影响游戏 ✗ */}
+        <知乎账号 />
         <div className="pn-sec-title">当前状态</div>
         <div className="pn-stats">
           <span>老板信任 {指标.信任}</span>
@@ -132,7 +137,7 @@ function 通讯录内容(): ReactElement {
             <button
               key={a.谁}
               className="pn-contact"
-              onMouseEnter={() => 播放('选项悬停')}
+             
               onClick={() => {
                 播放('按钮');
                 if (id) {
@@ -185,6 +190,9 @@ function 设置内容(): ReactElement {
   const [, 强制刷新] = useStateTick();
 
   const 声音开 = 有声();
+  /** 存档时间（给玩家一个"确实存上了"的凭据） */
+  const 存 = 读存档();
+  const 存档时间 = 存 ? new Date(存.时间).toLocaleString('zh-CN', { hour12: false }) : '';
 
   return (
     <div className="pn-settings">
@@ -192,7 +200,7 @@ function 设置内容(): ReactElement {
         <div className="pn-sec-title">声音</div>
         <button
           className="pn-switch"
-          onMouseEnter={() => 播放('选项悬停')}
+         
           onClick={() => {
             设声音(!声音开);
             强制刷新();
@@ -219,7 +227,7 @@ function 设置内容(): ReactElement {
             <button
               key={v}
               className={`pn-speed-btn${速度 === v ? ' on' : ''}`}
-              onMouseEnter={() => 播放('选项悬停')}
+             
               onClick={() => {
                 播放('按钮');
                 设速度(v as number);
@@ -233,10 +241,21 @@ function 设置内容(): ReactElement {
       </div>
 
       <div className="pn-sec">
+        <知乎账号 />
+        <div className="pn-sec-title">存档</div>
+        <div className="pn-note">
+          进度**自动存在这台设备上**（浏览器的 localStorage）：关掉页面、关掉浏览器都还在，
+          <b>只有清空浏览器缓存 / 站点数据才会丢</b>。下次打开直接接着上次那条消息继续；
+          **小游戏打到一半也会存**（剩余时间、已交几版、手里和地上那份都在）。
+          {存档时间 ? <><br />上次保存：{存档时间}</> : null}
+        </div>
+      </div>
+
+      <div className="pn-sec">
         <div className="pn-sec-title">进度</div>
         <button
           className="pn-danger"
-          onMouseEnter={() => 播放('选项悬停')}
+         
           onClick={() => {
             播放('按钮');
             重置();
@@ -340,7 +359,7 @@ export function 资料卡(): ReactElement | null {
           <h2 className="pn-title">个人资料</h2>
           <button
             className="pn-close"
-            onMouseEnter={() => 播放('选项悬停')}
+           
             onClick={() => {
               播放('按钮');
               开关资料卡(false);
@@ -385,7 +404,7 @@ export function 人物卡(): ReactElement | null {
       <div className="pn-modal-box" onClick={(e) => e.stopPropagation()}>
         <header className="pn-head">
           <h2 className="pn-title">人物</h2>
-          <button className="pn-close" onMouseEnter={() => 播放('选项悬停')} onClick={关}>
+          <button className="pn-close" onClick={关}>
             关闭
           </button>
         </header>
@@ -424,7 +443,7 @@ export function 人物卡(): ReactElement | null {
             <button
               className="pn-switch"
               style={{ justifyContent: 'center' }}
-              onMouseEnter={() => 播放('选项悬停')}
+             
               onClick={() => {
                 播放('按钮');
                 if (屏幕 !== 'avg') 掏手机();
@@ -461,7 +480,7 @@ export function 设置弹层(): ReactElement | null {
       <div className="pn-modal-box" onClick={(e) => e.stopPropagation()}>
         <header className="pn-head">
           <h2 className="pn-title">设置</h2>
-          <button className="pn-close" onMouseEnter={() => 播放('选项悬停')} onClick={关}>
+          <button className="pn-close" onClick={关}>
             关闭
           </button>
         </header>

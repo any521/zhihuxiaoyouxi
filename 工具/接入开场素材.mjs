@@ -133,6 +133,9 @@ const 映射 = [
   ['背景/出租屋_横版.png', 'avg/bg_room.png'],
   ['背景/招聘会_横版.png', 'avg/bg_jobfair.png'],
   ['背景/办公室工位.png', 'avg/bg_office.png'],
+  // 会议室插图（跑团面板左边的底图）—— 2026-09 新增
+  ['背景/会议室_横版.png', 'avg/bg_meeting_land.png'],
+  ['背景/会议室_竖版.png', 'avg/bg_meeting_port.png'],
 
   // 头像框
   ['界面v2/头像框_方形.png', 'avg/frame_square.png'],

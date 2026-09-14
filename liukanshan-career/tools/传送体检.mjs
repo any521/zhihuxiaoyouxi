@@ -78,6 +78,14 @@ await 页.evaluate(() => {
   window.__lksStory.getState().地图交互('我的工位');
 });
 await 等(300);
+/*
+ * ⚠️ 文档第 1 条之后，"主线入口"会**先放一段过场**（全屏盖着，2.2s）再切进微信 ——
+ *    过场期间推进一步是白推。这里先等微信真的出来。
+ */
+for (let i = 0; i < 30; i += 1) {
+  if (await 页.evaluate(() => !!document.querySelector('.wechat'))) break;
+  await 等(200);
+}
 let 到了 = null;
 for (let i = 0; i < 40; i += 1) {
   const s = await 读剧情();

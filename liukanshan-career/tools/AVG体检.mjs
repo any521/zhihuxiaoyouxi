@@ -44,7 +44,20 @@ const 状态 = () =>
 /** 连推若干步 */
 const 推 = (次) =>
   页.evaluate(async (次) => {
-    for (let i = 0; i < 次; i += 1) window.__lksStory.getState().推进一步();
+    for (let i = 0; i < 次; i += 1) {
+      /**
+       * ⚠️ 文档第 7 条之后，剧本会在「等玩家发言」那一条**真的停下来**
+       *    （就是"周岚撤回之前先让玩家在群里说一句"）。
+       *    体检脚本不替玩家发一句的话，后面所有检查都永远到不了 —— 会假红一片。
+       */
+      // ⚠️ 过场挡着的时候推进一步是白推（全屏盖着，剧情也停着）—— 等它走完
+      for (let 等 = 0; 等 < 40 && window.__lksStory.getState().过场; 等 += 1) {
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      const s = window.__lksStory.getState();
+      if (s.待玩家发言) window.__lksStory.getState().发一句话('测试：新人报到');
+      window.__lksStory.getState().推进一步();
+    }
     return true;
   }, 次);
 

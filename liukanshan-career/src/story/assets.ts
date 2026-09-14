@@ -16,6 +16,9 @@ export const 插图表 = {
   出租屋: 素材('bg_room.png'),
   招聘会: 素材('bg_jobfair.png'),
   办公室: 素材('bg_office.png'),
+  /* 会议室（跑团面板左边那块底图）—— 2026-09 出的真素材 */
+  会议室: 素材('bg_meeting_land.png'),
+  会议室竖: 素材('bg_meeting_port.png'),
   /* 开场专用（2026-09-13 补，替掉原来重复和场景不对的两格） */
   接到电话: 素材('bg_open_call.png'),
   写字楼门口: 素材('bg_open_tower.png'),

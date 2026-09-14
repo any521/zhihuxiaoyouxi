@@ -14,10 +14,9 @@ import type { 说话人 } from '../story/types';
 import { 头像, 贴纸表, 气泡图 } from '../story/assets';
 import { useStory, type 侧栏面板, type 会话, type 渲染项 } from '../state/story';
 import { 侧栏内容, 资料卡, 人物卡 } from './Panels';
+import { 跑团面板 } from './跑团面板';
 import { 播放, 有声, 设声音 } from '../story/audio';
-
 const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.baseURI).href;
-
 /**
  * 统一的按钮反馈：划过轻响、按下出声，然后才执行自己的动作。
  * 所有可点的东西都套这个，玩家不用猜哪里能点。
@@ -25,27 +24,23 @@ const 素材 = (名: string): string => new URL(`assets/avg/${名}`, document.ba
  */
 function 按钮反馈(动作?: () => void) {
   return {
-    onMouseEnter: () => 播放('选项悬停'),
-    onFocus: () => 播放('选项悬停'),
+    
+    
     onClick: () => {
       播放('按钮');
       动作?.();
     },
   };
 }
-
 /* ───────── 可拖拽的分栏 ───────── */
-
 const 列表宽范围 = { 最小: 176, 最大: 520, 默认: 244 };
 const 宽度键 = 'lks-wechat-list-width';
-
 /** 读上次拖的宽度（记在 localStorage，刷新后还在） */
 function 读列表宽(): number {
   const 存 = Number(window.localStorage.getItem(宽度键));
   if (Number.isFinite(存) && 存 >= 列表宽范围.最小 && 存 <= 列表宽范围.最大) return 存;
   return 列表宽范围.默认;
 }
-
 /**
  * 拖拽调宽。用 pointer 事件（同时支持鼠标与触摸），
  * 拖的时候禁用文本选中、把光标锁定成 col-resize。
@@ -55,16 +50,13 @@ function use拖拽宽度() {
   const [拖拽中, set拖拽中] = useState(false);
   /** 上一次按下的时刻，用来自己判定"双击" */
   const 上次按下 = useRef(0);
-
   // 宽度一变就落盘
   useEffect(() => {
     window.localStorage.setItem(宽度键, String(宽));
   }, [宽]);
-
   const 开始拖 = useCallback(
     (e: React.PointerEvent) => {
       e.preventDefault();
-
       // ⚠️ 不能用 onDoubleClick：pointerdown 里 preventDefault() 会把后续的
       // click/dblclick 一起吃掉，双击事件根本不会触发。所以自己判。
       const 现在 = Date.now();
@@ -74,13 +66,11 @@ function use拖拽宽度() {
         set宽(列表宽范围.默认);
         return;
       }
-
       const 起x = e.clientX;
       const 起宽 = 宽;
       set拖拽中(true);
       document.body.style.cursor = 'col-resize';
       document.body.style.userSelect = 'none';
-
       const 移动 = (ev: PointerEvent): void => {
         const 新 = 起宽 + (ev.clientX - 起x);
         set宽(Math.min(列表宽范围.最大, Math.max(列表宽范围.最小, 新)));
@@ -99,18 +89,14 @@ function use拖拽宽度() {
     },
     [宽],
   );
-
   /** 双击复位到默认宽度 */
   const 复位 = useCallback(() => set宽(列表宽范围.默认), []);
-
   /** 键盘调宽用的设置器（做一次夹紧） */
   const 设宽 = useCallback((n: number) => {
     set宽(Math.min(列表宽范围.最大, Math.max(列表宽范围.最小, n)));
   }, []);
-
   return { 宽, 拖拽中, 开始拖, 复位, 设宽 };
 }
-
 /** 键盘也能调（左右方向键），方便不用鼠标时 */
 function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number) => void): void {
   const 步 = e.shiftKey ? 40 : 12;
@@ -122,10 +108,8 @@ function 键盘调宽(e: React.KeyboardEvent, 现宽: number, 设宽: (n: number
     设宽(Math.min(列表宽范围.最大, 现宽 + 步));
   }
 }
-
 /** 群头像拼不满 4 个时的兜底成员 */
 const 兜底成员: 说话人[] = ['小鹿', '周岚', '阿麦', '韩策'];
-
 /**
  * 方形头像（带像素边框）。**可点**：点了弹人物卡，和地图上点同事是同一张卡。
  *
@@ -158,7 +142,7 @@ function 头({
     <button
       className="wc-face"
       style={样式}
-      onMouseEnter={() => 播放('选项悬停')}
+     
       onClick={(e) => {
         e.stopPropagation();
         播放('按钮');
@@ -171,7 +155,6 @@ function 头({
     </button>
   );
 }
-
 /** 群聊头像：2×2 拼成员的脸（成员不够 4 个就用兜底名单补） */
 function 群头({ 成员, 尺寸 = 40 }: { 成员?: 说话人[]; 尺寸?: number }): ReactElement {
   const 用 = (成员 && 成员.length ? 成员 : 兜底成员).filter((x) => x !== '刘看山').slice(0, 4);
@@ -185,7 +168,6 @@ function 群头({ 成员, 尺寸 = 40 }: { 成员?: 说话人[]; 尺寸?: number
     </span>
   );
 }
-
 /** 会话列表里的一行 */
 function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; 点: () => void }): ReactElement {  const 最后 = [...会话.条目].reverse().find((x) => x.种类 !== '输入中');
   let 预览 = '';
@@ -215,7 +197,6 @@ function 会话行({ 会话, 选中, 点 }: { 会话: 会话; 选中: boolean; �
     </button>
   );
 }
-
 /** 聊天气泡 */
 function 气泡({
   谁,
@@ -246,11 +227,19 @@ function 气泡({
     </div>
   );
 }
-
 /** 一条已渲染的条目 */
 function 一条({ 项, 群聊 }: { 项: 渲染项; 群聊: boolean }): ReactElement | null {
   switch (项.种类) {
     case '消息':
+      /**
+       * ⚠️ 文档第 7 条：被撤回的消息**不显示原内容**，只留一行
+       *    「<撤回者>撤回了一条消息」（和微信一致）。
+       *    原来剧本里是硬写一句 `系统: '周岚撤回了一条消息'` —— 没有可撤回的对象，
+       *    玩家看着莫名其妙（"我都没说话，她撤回了个啥"）。
+       */
+      if (项.已撤回) {
+        return <div className="wc-recall">{项.撤回者 ?? 项.谁}撤回了一条消息</div>;
+      }
       return <气泡 谁={项.谁} 我方={项.我方} 文本={项.文本} 群聊={群聊} />;
     case '贴纸':
       return <气泡 谁={项.谁} 我方={项.我方} 图={贴纸表[项.贴纸]} 群聊={群聊} />;
@@ -313,7 +302,7 @@ function 一条({ 项, 群聊 }: { 项: 渲染项; 群聊: boolean }): ReactElem
                   href={项.卡片.链接}
                   target="_blank"
                   rel="noreferrer"
-                  onMouseEnter={() => 播放('选项悬停')}
+                 
                   onClick={() => 播放('按钮')}
                 >
                   查看原文 ▸
@@ -329,7 +318,6 @@ function 一条({ 项, 群聊 }: { 项: 渲染项; 群聊: boolean }): ReactElem
       return null;
   }
 }
-
 /** 把命中的词包一层高亮 */
 function 高亮({ 文本, 词 }: { 文本: string; 词: string }): ReactElement {
   if (!词) return <>{文本}</>;
@@ -345,7 +333,6 @@ function 高亮({ 文本, 词 }: { 文本: string; 词: string }): ReactElement 
     </>
   );
 }
-
 /** 一条可搜索的条目（把会话里的各类条目拍平成纯文本） */
 function 条目文本(项: 渲染项): string {
   switch (项.种类) {
@@ -372,7 +359,6 @@ function 条目文本(项: 渲染项): string {
       return '';
   }
 }
-
 /**
  * 聊天记录搜索。
  * 在全部分会话里找包含关键词的条目，点结果直接跳到对应会话。
@@ -381,9 +367,7 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
   const 会话们 = useStory((s) => s.会话们);
   const 查看 = useStory((s) => s.查看);
   const 开搜索 = useStory((s) => s.开搜索);
-
   const 关键词 = 词.trim();
-
   if (!关键词) {
     return (
       <div className="wc-search-tip">
@@ -393,7 +377,6 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
       </div>
     );
   }
-
   const 结果: Array<{ 会话: 会话; 谁: string; 文本: string; id: number }> = [];
   for (const c of 会话们) {
     for (const 项 of c.条目) {
@@ -405,7 +388,6 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
   }
   // 也让人名/群名能被搜到
   const 会话命中 = 会话们.filter((c) => c.名字.includes(关键词));
-
   return (
     <div className="wc-search-results">
       {会话命中.length ? (
@@ -431,7 +413,6 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
           ))}
         </div>
       ) : null}
-
       {结果.length ? (
         <div className="wc-search-group">
           <div className="wc-search-group-title">聊天记录（{结果.length}）</div>
@@ -457,14 +438,12 @@ function 搜索结果({ 词 }: { 词: string }): ReactElement {
           {结果.length > 60 ? <div className="wc-search-more">只显示前 60 条</div> : null}
         </div>
       ) : null}
-
       {结果.length === 0 && 会话命中.length === 0 ? (
         <div className="wc-search-tip">没有找到「{关键词}」相关的记录。</div>
       ) : null}
     </div>
   );
 }
-
 /** 知乎卡正文：默认只露几行，点「展开全文」看全部（真实摘录有好几段，全铺开会太长） */
 function 知乎正文({ 文本 }: { 文本: string }): ReactElement {
   const [展开, set展开] = useState(false);
@@ -475,7 +454,7 @@ function 知乎正文({ 文本 }: { 文本: string }): ReactElement {
       {长 ? (
         <button
           className="wc-zhihu-more"
-          onMouseEnter={() => 播放('选项悬停')}
+         
           onClick={(e) => {
             e.stopPropagation();
             播放('按钮');
@@ -488,7 +467,6 @@ function 知乎正文({ 文本 }: { 文本: string }): ReactElement {
     </>
   );
 }
-
 export function Avg(): ReactElement {
   const 屏幕 = useStory((s) => s.屏幕);
   const 会话们 = useStory((s) => s.会话们);
@@ -498,8 +476,18 @@ export function Avg(): ReactElement {
   const 待选择 = useStory((s) => s.待选择);
   const 待接受邀请 = useStory((s) => s.待接受邀请);
   const 待暂停 = useStory((s) => s.待暂停);
+  const 待玩家发言 = useStory((s) => s.待玩家发言);
+  const 发一句话 = useStory((s) => s.发一句话);
+  /** 输入框里的草稿（只有"等玩家发言"这一段用得到） */
+  const [草稿, set草稿] = useState('');
   const 待去房间 = useStory((s) => s.待去房间);
   const 去房间 = useStory((s) => s.去房间);
+  /** 剧本播到「开小游戏」了：停在聊天界面等玩家点一下（好让他先翻完前面的消息）*/
+  const 待开小游戏 = useStory((s) => s.待开小游戏);
+  const 进入小游戏 = useStory((s) => s.进入小游戏);
+  // ⚠️ 跑团进行中时，聊天区不能再吃"点一下/空格 = 推进一步"——
+  //    那一拍是"跑团面板"的点骰子，两套输入叠在一起会一次走两步。
+  const 跑团中 = useStory((s) => s.跑团局 !== null);
   const 播完 = useStory((s) => s.播完);
   const 指标 = useStory((s) => s.指标);
   const 段标签 = useStory((s) => s.段标签);
@@ -518,18 +506,15 @@ export function Avg(): ReactElement {
   const 查看 = useStory((s) => s.查看);
   const 回列表 = useStory((s) => s.回列表);
   const 重置 = useStory((s) => s.重置);
-
   const [开启声音, set开启声音] = useState(有声);
   const 消息区 = useRef<HTMLDivElement>(null);
   const { 宽: 列表宽, 拖拽中, 开始拖, 设宽 } = use拖拽宽度();
   const 当前 = 会话们.find((c) => c.id === 查看会话) ?? 会话们[0];
   const 是活跃 = 查看会话 === 活跃会话;
   const 活跃名 = 会话们.find((c) => c.id === 活跃会话)?.名字 ?? '';
-
   // ⚠️ 自动推进**已经搬到 `StoryClock`**（挂在 Root 上）—— 这里不能留第二份，
   //    否则两个定时器会互相打架、剧情一次跳两步。
   //    搬家的原因见 `StoryClock.tsx` 顶部注释（"不切换到相应会话就不推进"那个 bug）。
-
   // 新消息滚到底
   /* 键盘：Tab 收起手机回地图；空格和点聊天区一样推进 */
   useEffect(() => {
@@ -546,30 +531,26 @@ export function Avg(): ReactElement {
       if (e.code === 'Space' || e.key === ' ') {
         if (useStory.getState().屏幕 !== 'avg') return;
         e.preventDefault();
-        // 和点聊天区等价：有选项/邀请/暂停时不推进（那些要点按钮）
+        // 和点聊天区等价：有选项/邀请/暂停/跑团时不推进（那些要点按钮）
         const s = useStory.getState();
-        if (s.待选择 || s.待接受邀请 || s.待暂停) return;
+        if (s.待选择 || s.待接受邀请 || s.待暂停 || s.跑团局 || s.待开小游戏 || s.待去房间 || s.待玩家发言) return;
         推进一步();
       }
     };
     window.addEventListener('keydown', 键);
     return () => window.removeEventListener('keydown', 键);
   }, [回地图, 推进一步]);
-
   useLayoutEffect(() => {
     const el = 消息区.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [当前?.条目.length, 查看会话, 待选择]);
-
   if (屏幕 !== 'avg') return <></>;
-
   /** 功能栏上四个面板按钮：图标、面板名、无障碍标签 */
   const 侧栏按钮: Array<[string, 侧栏面板, string]> = [
     ['icon_chat', '会话', '会话'],
     ['icon_contacts', '通讯录', '通讯录'],
     ['icon_settings', '设置', '设置'],
   ];
-
   return (
     <div className={`wechat${面板 === '列表' ? ' show-list' : ' show-chat'}`}>
       {/* ── 功能栏 ── */}
@@ -583,7 +564,6 @@ export function Avg(): ReactElement {
         >
           {头({ 谁: '刘看山', 尺寸: 36, 静态: true })}
         </button>
-
         <nav className="wc-rail-icons">
           {侧栏按钮.map(([图标, 名, 标签]) => (
             <button
@@ -598,7 +578,6 @@ export function Avg(): ReactElement {
             </button>
           ))}
         </nav>
-
         <button
           className={`wc-icon bottom${侧栏面板 === '更多' ? ' on' : ''}`}
           {...按钮反馈(() => 切面板('更多'))}
@@ -608,6 +587,39 @@ export function Avg(): ReactElement {
           <img src={素材('icon_more.png')} alt="" draggable={false} />
         </button>
       </aside>
+      {/*
+        ── 手机底部功能栏（桌面不显示，见 screens.css 的窄屏规则）──
+        ⚠️⚠️ 手机上原来 `.wc-rail` 整块 `display:none`，等于"我的资料 / 通讯录 / 设置 / 更多"
+           **四个入口在手机上全都没有**；更严重的是 `回地图` 只绑在 **Tab 键**上 ——
+           手机上点「微信」进了聊天之后**就再也回不去地图**了（没有 Tab 键）。
+           所以手机上补这条底栏（微信自己就是这么排的）：头像 / 会话 / 通讯录 / 设置 / 更多 / 回地图。
+      */}
+      <nav className="wc-tabbar">
+        <button className="wc-tab" {...按钮反馈(() => 开关资料卡())} title="我的资料" aria-label="我的资料">
+          {头({ 谁: '刘看山', 尺寸: 26, 静态: true })}
+        </button>
+        {[...侧栏按钮, ['icon_more', '更多', '更多'] as [string, 侧栏面板, string]].map(([图标, 名, 标签]) => (
+          <button
+            key={名}
+            className={`wc-tab${侧栏面板 === 名 ? ' on' : ''}`}
+            {...按钮反馈(() => 切面板(名))}
+            title={标签}
+            aria-label={标签}
+            aria-current={侧栏面板 === 名}
+          >
+            <img src={素材(`${图标}.png`)} alt="" draggable={false} />
+            <span>{标签}</span>
+          </button>
+        ))}
+        <button
+          className="wc-tab exit"
+          {...按钮反馈(() => 回地图())}
+          title="回到办公室（桌面端按 Tab）"
+          aria-label="回到办公室"
+        >
+          <span>回地图</span>
+        </button>
+      </nav>
 
       {/* ── 会话以外的面板：占满列表 + 聊天区 ── */}
       {侧栏面板 !== '会话' ? (
@@ -646,7 +658,6 @@ export function Avg(): ReactElement {
             </button>
           </header>
         )}
-
         {搜索开 ? (
           <搜索结果 词={搜索词} />
         ) : (
@@ -656,13 +667,11 @@ export function Avg(): ReactElement {
               <span>协作 {指标.协作}</span>
               <span>成长 {指标.成长}</span>
             </div>
-
             <div className="wc-rows">
               {会话们.map((c) => (
                 <会话行 key={c.id} 会话={c} 选中={c.id === 查看会话} 点={() => 查看(c.id)} />
               ))}
             </div>
-
             <div className="wc-list-foot">
               <button
                 className="wc-reset"
@@ -683,7 +692,6 @@ export function Avg(): ReactElement {
           </>
         )}
       </section>
-
       {/* ── 可拖拽分栏 ── */}
       <div
         className={`wc-split${拖拽中 ? ' dragging' : ''}`}
@@ -697,7 +705,6 @@ export function Avg(): ReactElement {
       >
         <span className="wc-split-grip" />
       </div>
-
       {/* ── 聊天窗口 ── */}
       <section className="wc-chat">
         <header className="wc-head">
@@ -706,16 +713,18 @@ export function Avg(): ReactElement {
           </button>
           <span className="wc-head-name">{当前?.名字 ?? ''}</span>
           <span className="wc-head-count">
-            {当前?.类型 === '群聊' ? `群聊 · ${(当前.成员?.length ?? 4) + 2} 人` : `在线 · ${段标签}`}
+            {/* ⚠️ 文档第 5 条：成员数**就是成员数**。原来多加 2 是错的 ——
+                茶水间 4 个人的群显示成"群聊 · 6 人"，和标题对不上。 */}
+              {当前?.类型 === '群聊' ? `群聊 · ${当前.成员?.length ?? 4} 人` : `在线 · ${段标签}`}
           </span>
           {!是活跃 ? <span className="wc-head-hint">回看历史中 · 新消息在「{活跃名}」</span> : null}
         </header>
-
         <div
           className="wc-body"
           ref={消息区}
           onClick={() => {
-            if (是活跃) 推进一步();
+            // ⚠️ 等玩家发言时，点聊天区**不能**推进一步（那句话还没发出去呢）
+        if (是活跃 && !跑团中 && !待玩家发言) 推进一步();
           }}
         >
           <div className="wc-body-inner">
@@ -724,14 +733,49 @@ export function Avg(): ReactElement {
             ))}
           </div>
         </div>
-
         <footer className="wc-foot">
           {待接受邀请 ? (
             <button className="wc-btn" {...按钮反馈(接受邀请)}>
               {待接受邀请.按钮}
             </button>
           ) : null}
-
+          {/*
+            ⚠️ 文档第 7 条：**撤回之前先让玩家自己说一句**。
+               平时聊天框只能在选项里选，这里给一个真正的输入框 ——
+               玩家发出去之后，周岚才会撤回它并私聊。
+          */}
+          {待玩家发言 ? (
+            <div className="wc-say">
+              <div className="wc-choices-hint">{待玩家发言.提示}</div>
+              <div className="wc-say-row">
+                <input
+                  className="wc-say-input"
+                  value={草稿}
+                  autoFocus
+                  maxLength={80}
+                  placeholder="说点什么…"
+                  onChange={(e) => set草稿(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && 草稿.trim()) {
+                      发一句话(草稿);
+                      set草稿('');
+                    }
+                  }}
+                />
+                <button
+                  className="wc-btn"
+                  disabled={!草稿.trim()}
+                  {...按钮反馈(() => {
+                    播放('按钮');
+                    发一句话(草稿);
+                    set草稿('');
+                  })}
+                >
+                  发送
+                </button>
+              </div>
+            </div>
+          ) : null}
           {待选择 ? (
             <div className="wc-choices">
               <div className="wc-choices-hint">发送一条消息（选定不可撤销）</div>
@@ -739,8 +783,6 @@ export function Avg(): ReactElement {
                 <button
                   key={i}
                   className="wc-choice"
-                  onMouseEnter={() => 播放('选项悬停')}
-                  onFocus={() => 播放('选项悬停')}
                   onClick={() => 选择(i)}
                 >
                   <span className="wc-choice-key">{'ABC'[i]}</span>
@@ -749,13 +791,11 @@ export function Avg(): ReactElement {
               ))}
             </div>
           ) : null}
-
           {待暂停 ? (
             <button className="wc-btn" {...按钮反馈(点暂停)}>
               {待暂停}
             </button>
           ) : null}
-
           {/* 「去房间」：玩家点一下才切地图（不然自动推进会自己把屏幕切走） */}
           {待去房间 ? (
             <button
@@ -768,22 +808,42 @@ export function Avg(): ReactElement {
               去 {待去房间.去哪} ▸
             </button>
           ) : null}
-
-          {!待选择 && !待接受邀请 && !待暂停 && !待去房间 && !播完 ? (
+          {/* 「开小游戏」：**先停一下**，玩家点一下才进工作关。
+              ⚠️ 用户要求："在开始小游戏之前要停顿一下点击进入再进入，要不到前面发的信息了"。
+                 直接切屏的话，玩家刚读到"下班前给我一版"界面就跳走了，
+                 想回看前面对话得等打完关卡。这里停下来，他就能翻完再走。 */}
+          {待开小游戏 ? (
+            <div className="wc-go-level">
+              <div className="wc-go-level-hint">
+                <b>手上的活来了</b>
+                <span>{待开小游戏.提示}</span>
+                <em>可以先把上面的聊天翻完，再点右边开始。</em>
+              </div>
+              <button
+                className="wc-btn go"
+                {...按钮反馈(() => {
+                  播放('按钮');
+                  进入小游戏();
+                })}
+              >
+                进入工作台 ▸
+              </button>
+            </div>
+          ) : null}
+          {!待选择 && !待接受邀请 && !待暂停 && !待去房间 && !待开小游戏 && !播完 ? (
             <div className="wc-hint">点聊天区或按空格加速 ▸</div>
           ) : null}
-
           {播完 ? <div className="wc-hint done">全部剧情播完了 —— 后面的事件还在写</div> : null}
         </footer>
       </section>
         </>
       )}
-
       {/* 个人资料卡（点功能栏里自己的头像打开） */}
       <资料卡 />
-
       {/* 人物卡（点聊天里的头像打开，和地图上点同事同一张） */}
       <人物卡 />
+      {/* 跑团面板：进行中时盖在最上面，玩家一轮一轮掷骰 */}
+      <跑团面板 />
     </div>
   );
 }

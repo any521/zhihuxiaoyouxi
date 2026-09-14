@@ -19,6 +19,7 @@
  * 【位置记忆】切到微信时把主角坐标记进 store，回来时传送回去 —— 不会回到出生点。
  */
 import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { 是触屏, 虚拟摇杆 } from './摇杆';
 import Phaser from 'phaser';
 import { OfficeMapScene } from '../game/map/OfficeMapScene';
 import { 交互点表 } from '../game/map/level';
@@ -55,6 +56,8 @@ export function MapScreen(): ReactElement {
   const 附近门ref = useRef<{ x: number; y: number; 开: boolean } | null>(null);
 
   const 附近 = useStory((s) => s.附近交互点);
+  /** 触屏设备才画摇杆/交互键（也可以用 ?触屏=1 强制打开核对布局） */
+  const 触屏 = 是触屏();
   const 附近物 = useStory((s) => s.附近物);
   const 设附近物 = useStory((s) => s.设附近物);
   const 附近人 = useStory((s) => s.附近人);
@@ -128,7 +131,7 @@ export function MapScreen(): ReactElement {
             地图交互(点.id);
           },
           点人物: (名) => {
-            播放('选项悬停');
+            
             看人物(名 as never);
           },
           // 靠近门 → 底部提示改成「空格 开门/关门」
@@ -212,6 +215,61 @@ export function MapScreen(): ReactElement {
     坐完了();
   }, [请求坐, 就绪, 坐完了]);
 
+  /**
+   * **"交互"这一下**：坐下 / 开关门 / 交互点 / 站起来。
+   *
+   * ⚠️ 抽出来是因为**键盘空格和触屏上的「交互」按钮必须走同一个入口** ——
+   *    两处各写一份的话，坐着/门/交互点的优先级迟早会不一样
+   *    （空格那个 bug："按空格被坐座位抢先，主线触发不了"就是这么来的）。
+   */
+  const 按下交互 = useCallback((): void => {
+    if (useStory.getState().屏幕 !== 'map') return;
+    const s0 = 场景.current;
+    const st = useStory.getState();
+
+    // ① 座位：只有"还没坐下"时才吃掉这一次（判据必须和 state/story.ts 的地图交互②完全一致）
+    if (s0 && st.站在座位上 && !st.坐着) {
+      播放('选择确认', 0.5);
+      st.要坐坐('坐');
+      return;
+    }
+
+    // ② 门优先：站在门口时是开关门
+    const 门 = 附近门ref.current;
+    if (门 && s0) {
+      播放(门.开 ? '按钮' : '选择确认', 0.5);
+      s0.开关门(门.x, 门.y);
+      return;
+    }
+
+    // ③ 交互点 —— 坐着也照样能交互（「坐在工位上开主线」那条路）
+    /**
+     * ⚠️⚠️ **优先读 store，读不到就问场景** ✗
+     *    store 里那个 `附近交互点` 是场景**异步推**过去的 ✗，可能是旧值/空值 ✔
+     *    场景的 当前交互点() 是**每帧现算**的，权威 ✔
+     *    （用户报的「有时按空格不触发、按 Tab 进一次微信才触发」就是这个 ✗）
+     */
+    /**
+     * ⚠️⚠️ **场景优先，store 兜底**（顺序很重要 ✗）
+     *    场景的 `当前交互点()` 是**每帧现算**的 ✔；store 里那个 `附近交互点` 是异步推过来的 ✔，
+     *    它可能是**上一格**的旧值 ✗ —— 旧值会让 `地图交互(旧id)` 打不到真正的目标 ✔
+     *    （用户报「林总的对话触发不了」很可能就是这个 ✗）
+     *    所以：**先问场景** ✗，场景说不出（还没建好/没挨着任何点）再用 store ✔
+     */
+    const id = s0?.当前交互点()?.id ?? st.附近交互点;
+    if (id) {
+      播放('按钮');
+      地图交互(id);
+      return;
+    }
+
+    // ④ 坐着、这格又没事可做 → 站起来（不然坐下去就出不来）
+    if (st.坐着) {
+      播放('按钮');
+      st.要坐坐('站');
+    }
+  }, [地图交互]);
+
   /* ── 键盘：Tab 掏手机 / Esc 设置 / 空格 交互 ── */
   const 按键 = useCallback(
     (e: KeyboardEvent): void => {
@@ -244,31 +302,12 @@ export function MapScreen(): ReactElement {
         //    并且这个默认行为发生在 keydown 之后、比我们的逻辑更"优先"。
         //    早于一切分支 preventDefault，才能保证空格是我们自己的键。
         e.preventDefault();
-        const s0 = 场景.current;
-        // 座位优先：脚下是椅子/沙发 → 空格就是"坐下 / 站起来"
-        // （不用等交互点 —— 空椅子那一格根本没有交互点，以前就什么都不发生）
-        if (s0 && useStory.getState().站在座位上) {
-          播放(useStory.getState().坐着 ? '按钮' : '选择确认', 0.5);
-          useStory.getState().要坐坐(useStory.getState().坐着 ? '站' : '坐');
-          return;
-        }
-        // 门优先：站在门口时空格是开关门，不是交互
-        // ⚠️ 这里读 ref 而不是 state —— keydown 的闭包是旧的，读 state 会拿到过期的值
-        const 门 = 附近门ref.current;
-        const s = 场景.current;
-        if (门 && s) {
-          播放(门.开 ? '按钮' : '选择确认', 0.5);
-          s.开关门(门.x, 门.y);
-          return;
-        }
-        const id = useStory.getState().附近交互点;
-        if (id) {
-          播放('按钮');
-          地图交互(id);
-        }
+        // 交给共用的那一个入口（触屏上的「交互」按钮走的是同一个函数）
+        按下交互();
+        return;
       }
     },
-    [掏手机, 开关设置, 地图交互],
+    [掏手机, 开关设置, 按下交互],
   );
 
   useEffect(() => {
@@ -297,7 +336,7 @@ export function MapScreen(): ReactElement {
   };
 
   return (
-    <div className="map-wrap">
+    <div className={`map-wrap${触屏 ? ' map-touch' : ''}`}>
       {/* Phaser 画布：内部尺寸 = 内宽×内高，CSS 放大整数倍，正好铺满窗口 */}
       <div
         className="map-canvas"
@@ -356,9 +395,16 @@ export function MapScreen(): ReactElement {
         <div className={`map-prompt${是主线 ? ' main' : ''}`}>
           <b>{附近点.名}</b>
           <span className="map-prompt-key">空格</span>
-          {/* 「去房间」时优先显示剧本给的提示（"小鹿在工位上等你"），比交互点自己的话更贴当下 */}
+          {/* 「去房间」时优先显示剧本给的提示（"小鹿在工位上等你"），比交互点自己的话更贴当下。
+              ⚠️ 主线入口还要看"坐没坐下"：没坐下时空格是**先坐下**（提示说"坐下看看"），
+                 坐好了之后空格才是**开始这一段**。提示不跟着变的话，
+                 玩家会以为空格失灵（用户报的正是"触发不了剧情"）。 */}
           <span className="map-prompt-act">
-            {是主线 && 续播提示 ? 续播提示 : 附近点.提示}
+            {是主线
+              ? 坐着
+                ? '开始这一段'
+                : (续播提示 ?? 附近点.提示)
+              : 附近点.提示}
           </span>
           {是主线 ? <span className="map-prompt-star">主线</span> : null}
         </div>
@@ -371,8 +417,41 @@ export function MapScreen(): ReactElement {
         </div>
       ) : null}
 
+      {/*
+        移动端：**左下摇杆 + 右下「交互」键**。
+        ⚠️ 地图原来也只能键盘走（手机上一步都动不了）。除了摇杆，场景那边还支持
+           **点地面自动寻路走过去**（点一下地，A* 出一条路自己走）。
+      */}
+      {触屏 ? (
+        <>
+          <虚拟摇杆 />
+          <div className="map-actions">
+            <button
+              type="button"
+              className="map-act"
+              // ⚠️ 和摇杆同时按的时候浏览器**不会合成 click** —— 必须绑 pointerdown
+              onPointerDown={(e) => {
+                e.preventDefault();
+                播放('按钮');
+                按下交互();
+              }}
+              title="和键盘空格一样：坐下 / 开关门 / 交互"
+            >
+              交互<small>空格</small>
+            </button>
+          </div>
+        </>
+      ) : null}
+
       {/* 右下：掏手机 */}
-      <button className="map-phone" onMouseEnter={() => 播放('选项悬停')} onClick={去微信} title="掏出手机（Tab）">
+      <button
+        className="map-phone"
+        onPointerDown={(e) => {
+          e.preventDefault();
+          去微信();
+        }}
+        title="掏出手机（Tab）"
+      >
         <span className="map-phone-dot" />
         微信
         <span className="map-phone-key">Tab</span>
@@ -381,8 +460,8 @@ export function MapScreen(): ReactElement {
       {/* 右下角：设置 */}
       <button
         className="map-gear"
-        onMouseEnter={() => 播放('选项悬停')}
-        onClick={() => {
+        onPointerDown={(e) => {
+          e.preventDefault();
           播放('按钮');
           开关设置();
         }}

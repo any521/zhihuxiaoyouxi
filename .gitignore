@@ -41,3 +41,26 @@ Desktop.ini
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# ───────── 密钥与本地配置（绝不入库）─────────
+.env
+.env.*
+!.env.example
+*.pem
+*secret*
+zhihu-access-secret
+
+# ───────── 操作系统 / 编辑器 ─────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# ───────── 打包产物 ─────────
+*.tar.gz
+
+# ───────── 临时脚本与截图 ─────────
+_*.mjs
+liukanshan-career/tools/shots/

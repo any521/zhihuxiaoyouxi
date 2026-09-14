@@ -34,27 +34,21 @@ import {
   type 座位,
 } from './level';
 import { 报位置 } from './位置总线';
+import { 松摇杆, 虚拟输入 } from '../touch';
 import { 取道具卡, 道具落地范围 } from '../../story/道具卡';
-
 /** 地图像素尺寸 */
 const 图宽 = 地图宽 * 格;
 const 图高 = 地图高 * 格;
-
 /** 走路速度（像素/秒） */
 const 速度 = 92;
-
 /** 交互半径（像素） */
 const 交互半径 = 34;
-
 /** 四个方向的帧行号：下 上 左 右 */
 const 方向行 = [0, 1, 2, 3];
-
 /** NPC 朝向 → 精灵表帧号（精灵表是 ①下 ②左 ③右 / ④上 ⑤点头 ⑥说话） */
 const NPC朝向帧 = [0, 3, 1, 2];
-
 /** 有坐姿动画的七个角色（文件名 = sit_名字.png）*/
 const 有坐姿 = ['刘看山', '周岚', '阿麦', '韩策', '小鹿', '林总', '程女士'];
-
 export interface 地图回调 {
   /** 附近的交互点变了（null = 附近没有） */
   附近变了: (点: 交互点 | null) => void;
@@ -80,7 +74,6 @@ export interface 地图回调 {
    */
   坐姿变了?: (坐着: boolean) => void;
 }
-
 /**
  * 玩家旁边的东西（给地图上的"道具卡"用）。
  *
@@ -92,9 +85,14 @@ export interface 附近物 {
   /** 道具的图名（如 prop_dev_打印机），或格子卡的名字（门 / 玻璃） */
   键: string;
 }
-
 export class OfficeMapScene extends Phaser.Scene {
   private 主角!: Phaser.Physics.Arcade.Sprite;
+  /**
+   * **点地自动走**：还没走完的那条路（`找路()` 给的格子路径）。
+   * ⚠️ 一按方向键 / 一推摇杆就清空 —— 玩家自己动了，说明他不想按你这条路走。
+   *    这是手机上的主要移动方式（键盘那套在手机上够不着）。
+   */
+  private 自动路: Array<{ x: number; y: number }> | null = null;
   private 光标!: Phaser.Types.Input.Keyboard.CursorKeys;
   private WASD?: Record<string, Phaser.Input.Keyboard.Key>;
   private 图层!: Phaser.Tilemaps.TilemapLayer;
@@ -106,6 +104,21 @@ export class OfficeMapScene extends Phaser.Scene {
   private 脚下影!: Phaser.GameObjects.Ellipse;
   private 回调?: 地图回调;
   private 当前附近: 交互点 | null = null;
+
+  /**
+   * **我现在挨着哪个交互点**（给 React 层「按空格」用）。
+   *
+   * ⚠️⚠️ 为什么要暴露这个（用户报的 bug：
+   *    「有时主线剧情按空格没有触发，按 Tab 进入微信才触发」）：
+   *    React 那侧读的是 store 里的 `附近交互点` ✗ —— 那是场景**异步推**过去的值 ✔，
+   *    一旦 React 重新挂载 / store 被重置，它就可能还是空的 ✗
+   *    → 按空格没目标 → 什么都不发生 ✔；
+   *    而按一次 Tab 会让地图屏重新同步一遍 → 之后空格又灵了 ✔（正是用户描述的现象 ✗）
+   *    场景自己**每帧都知道**挨着谁 ✔，所以这里给 React 一个**权威来源** ✔
+   */
+  当前交互点(): 交互点 | null {
+    return this.当前附近;
+  }
   /** 玩家旁边那件东西（道具卡用）。**变了才回调**，免得每帧刷 React。 */
   private 当前附近物: 附近物 | null = null;
   /** 上一帧玩家在第几格 —— 没换格就不重算"旁边是什么" */
@@ -129,16 +142,13 @@ export class OfficeMapScene extends Phaser.Scene {
   /** 现在坐在哪个座位上（起来时用来还原位置） */
   private 坐的座位: 座位 | null = null;
   private 目标 = 交互点表[0] as 交互点 | undefined;
-
   constructor() {
     super('办公室地图');
   }
-
   /** React 侧注入回调 */
   设回调(回调: 地图回调): void {
     this.回调 = 回调;
   }
-
   /**
    * 同事**逻辑上在哪一格**（不是精灵画在哪）。
    *
@@ -152,12 +162,10 @@ export class OfficeMapScene extends Phaser.Scene {
     if (位) return { x: 位.x, y: 位.y };
     return { x: Math.floor((s.x - 16) / 格), y: Math.floor((s.y - 32) / 格) };
   }
-
   /** 换一个导航目标（指引线指向它） */
   设目标(id: string | null): void {
     this.目标 = id ? 交互点表.find((p) => p.id === id) : undefined;
   }
-
   /**
    * 坐下（只能坐在 `座位表` 里的格子上，不然会"坐在空中"）。
    * 姿势按 `坐哪套()` 自动选 —— 工位背面、其它地方正面。
@@ -174,7 +182,6 @@ export class OfficeMapScene extends Phaser.Scene {
       return g.x === 座.x && g.y === 座.y;
     });
   }
-
   /**
    * 调试/体检用：现在（按 `找空座位` 的同一套规则）能不能坐下去。
    * 给 `tools/坐姿体检.mjs` 断言「**自己工位左边坐不下**、别的工位/三个方向都能坐」。
@@ -182,7 +189,6 @@ export class OfficeMapScene extends Phaser.Scene {
   能坐吗(): boolean {
     return this.找空座位(this.位置()) !== null;
   }
-
   /**
    * 找座位（跳过有人的），附近没有空位就返回 null。
    *
@@ -197,7 +203,6 @@ export class OfficeMapScene extends Phaser.Scene {
   private 找空座位(位: { x: number; y: number }): 座位 | null {
     const 脚下 = 座位表.find((c) => c.x === 位.x && c.y === 位.y);
     if (脚下) return this.座位有人(脚下) ? null : 脚下;
-
     let 最好: { 座: 座位; 实距: number } | null = null;
     for (const 座 of 座位表) {
       const dx = 座.x - 位.x;
@@ -210,7 +215,6 @@ export class OfficeMapScene extends Phaser.Scene {
     }
     return 最好?.座 ?? null;
   }
-
   /**
    * 把一个人（主角 / 同事）**放到座位上**：位置、姿势、深度全在这一处算。
    *
@@ -233,7 +237,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const 有正面素材 = this.textures.exists(`sitfront_${名}`);
     const key = 正面 && 有正面素材 ? `坐正_${名}` : `坐_${名}`;
     if (!this.anims.exists(key)) return false;
-
     const 格 = this.格到像素(座.x, 座.y);
     谁.setOrigin(0.5, 1);
     谁.setPosition(格.x, 格.y + 座.偏移Y);
@@ -242,7 +245,6 @@ export class OfficeMapScene extends Phaser.Scene {
     谁.anims.play(key, true);
     return true;
   }
-
   /**
    * 坐下（只能坐在 `座位表` 里、**而且没被人占**的位子上）。
    *
@@ -262,7 +264,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.回调?.坐姿变了?.(true);
     return true;
   }
-
   /**
    * 主角坐下 / 站起来（在交互点上按空格时由 React 层调）。
    * 坐着就站起来、没坐就坐下。
@@ -274,7 +275,6 @@ export class OfficeMapScene extends Phaser.Scene {
     }
     return this.坐下();
   }
-
   /** 从坐姿站起来（回待机帧）。走路时也会自动调它。 */
   站起来(): void {
     if (!this.主角坐着) return;
@@ -290,12 +290,10 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角.setDepth(this.主角.y);
     this.回调?.坐姿变了?.(false);
   }
-
   /** 主角现在坐着吗（React 侧显示"站起来"提示用） */
   在坐着(): boolean {
     return this.主角坐着;
   }
-
   /**
    * 调试用：主角当前播的是哪套坐姿（'back' / 'front' / null = 没坐）。
    * 给 `tools/坐姿体检.mjs` 用 —— 那个脚本要断言"工位坐背面、茶水间坐正面"。
@@ -307,13 +305,11 @@ export class OfficeMapScene extends Phaser.Scene {
     if (k === '坐正_刘看山') return 'front';
     return null;
   }
-
   /** 某格的门开着吗（开着的门瓦片 = 门横/门竖） */
   private 门开着(x: number, y: number): boolean {
     const t = 网格[y]?.[x];
     return 通行瓦片.includes(t);
   }
-
   /** 改一格门的瓦片 + 同步碰撞（putTileAt 换上来的新瓦片不会自动带挡路属性）*/
   private 改门格(x: number, y: number, 号: number): void {
     网格[y][x] = 号;
@@ -322,7 +318,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const t = this.图层.getTileAt(x, y);
     t?.setCollision(挡, 挡, 挡, 挡, true);
   }
-
   /**
    * 开 / 关一扇门。
    * ⚠️ 改完瓦片要**手动设碰撞** —— putTileAt 换上去的新瓦片不会自动带上"挡路"属性
@@ -345,7 +340,6 @@ export class OfficeMapScene extends Phaser.Scene {
     // 门的阻挡改由**物理挡板**负责（不再是瓦片），所以要跟着刷新
     this.刷新门体(x, y);
   }
-
   /**
    * 给门的**门框**加碰撞。
    *
@@ -363,7 +357,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const 扇宽 = 14;
     /** 已经加过框的门（一扇门两格，别加两次）*/
     const 加过 = new Set<string>();
-
     /** 建一个静态碰撞矩形，返回它，方便之后开关 */
     const 建块 = (cx: number, cy: number, w: number, h: number): Phaser.GameObjects.Rectangle => {
       const r = this.add.rectangle(cx, cy, w, h);
@@ -372,7 +365,6 @@ export class OfficeMapScene extends Phaser.Scene {
       this.挡路.add(r);
       return r;
     };
-
     for (const d of this.门们) {
       const 号 = 网格[d.y]?.[d.x];
       const 偏 = 门另一半[号];
@@ -383,11 +375,9 @@ export class OfficeMapScene extends Phaser.Scene {
       const 键 = `${头x},${头y}`;
       if (加过.has(键)) continue;
       加过.add(键);
-
       const 是横门 = 偏[0] !== 0;
       const x0 = 头x * 格;
       const y0 = 头y * 格;
-
       if (是横门) {
         // 门框：左右各一块
         建块(x0 + 框宽 / 2, y0 + 格 / 2, 框宽, 格);
@@ -408,7 +398,6 @@ export class OfficeMapScene extends Phaser.Scene {
     // 按当前状态把挡板启停一次
     for (const d of this.门们) this.刷新门体(d.x, d.y);
   }
-
   /** 按某扇门当前的开/关，启停它的两块挡板 */
   private 刷新门体(x: number, y: number): void {
     const 号 = 网格[y]?.[x];
@@ -424,7 +413,6 @@ export class OfficeMapScene extends Phaser.Scene {
     if (a) a.enable = !现在开;
     if (b) b.enable = 现在开;
   }
-
   /** 开局扫一遍网格，把所有门的位置记下来 */
   private 找门(): void {
     this.门们 = [];
@@ -434,7 +422,6 @@ export class OfficeMapScene extends Phaser.Scene {
       }
     }
   }
-
   /** 最近的门（在交互半径内） */
   private 最近门(): { x: number; y: number; 开: boolean } | null {
     let 最好: { x: number; y: number; 开: boolean } | null = null;
@@ -450,14 +437,12 @@ export class OfficeMapScene extends Phaser.Scene {
     }
     return 最好;
   }
-
   /** 调试用：把主角直接挪到某个**瓦片坐标**（自动化测试走近交互点太慢） */
   传送(格x: number, 格y: number): void {
     const p = this.格到像素(格x, 格y);
     this.主角.setPosition(p.x, p.y);
     this.主角.body?.reset(p.x, p.y);
   }
-
   /**
    * 按**像素坐标**传送。
    * ⚠️ 和 传送() 的区别很重要：位置记忆存的是 精确位置() 的像素值，
@@ -470,7 +455,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.主角.setPosition(x, y);
     this.主角.body?.reset(x, y);
   }
-
   /** 调试用：读主角当前所在瓦片（用 floor —— round 会把"刚好停在物体边缘"读成下一格，误导判断）*/
   位置(): { x: number; y: number } {
     return {
@@ -478,12 +462,10 @@ export class OfficeMapScene extends Phaser.Scene {
       y: Math.floor((this.主角.y - 格) / 格),
     };
   }
-
   /** 调试用：主角的精确像素坐标 */
   精确位置(): { x: number; y: number } {
     return { x: Math.round(this.主角.x), y: Math.round(this.主角.y) };
   }
-
   preload(): void {
     const 基 = 'assets/map/';
     // ⚠️ 顺序必须和 level.ts 的 瓦片 枚举一一对应
@@ -511,11 +493,23 @@ export class OfficeMapScene extends Phaser.Scene {
     // 坐姿表（**两套**）：4 帧 × 32×48 横排，直接当 spritesheet 用
     //   sit_<名>      = 背面坐姿（在自己工位上背对走廊打字）
     //   sitfront_<名> = 正面坐姿（被剧情传送到茶水间/会议室，面对主角说话，画到脚）
+    /**
+     * ⚠️⚠️ **坐姿那两套必须带 `!exists` 判断** —— 用户日志里那一串
+     *    `Failed to process file: spritesheet sitfront_小鹿 / sit_林总 / …` 就是这里 ✗
+     *
+     *    纹理是**全局的**（TextureManager 跨场景存活 ✔），而这个 `preload()` 在
+     *    **每次进地图**（重开一局、换段回地图、点重来）都会再跑一遍 ✗ ——
+     *    于是 Phaser 去加载一个**已经存在**的 key ✗ → 直接报上面那条错 ✔
+     *    同一个文件里，道具（下面 for 道具表）和 NPC 都写了 `if (!exists)` ✔，
+     *    唯独坐姿这两套漏了 ✗ —— 而且这里原来还写着 `|| true` ✗，
+     *    等于把唯一的判断也废掉了 ✔
+     */
     for (const 名 of 有坐姿) {
-      this.load.spritesheet(`sit_${名}`, `${基}sit_${名}.png`, { frameWidth: 32, frameHeight: 48 });
-      if (this.textures.exists(`sitfront_${名}`) || true) {
-        // ⚠️ 正面坐姿素材**可以缺**（还没生成的版本）：缺了就用背面那套兜底，
-        //    所以这里用 `if (!exists)` 包一层，加载失败不会让整个 preload 崩。
+      if (!this.textures.exists(`sit_${名}`)) {
+        this.load.spritesheet(`sit_${名}`, `${基}sit_${名}.png`, { frameWidth: 32, frameHeight: 48 });
+      }
+      // ⚠️ 正面坐姿素材**可以缺**（还没生成的版本）：缺了就用背面那套兜底 ✔
+      if (!this.textures.exists(`sitfront_${名}`)) {
         this.load.spritesheet(`sitfront_${名}`, `${基}sitfront_${名}.png`, {
           frameWidth: 32,
           frameHeight: 48,
@@ -537,7 +531,6 @@ export class OfficeMapScene extends Phaser.Scene {
       }
     }
   }
-
   create(): void {
     this.挡路 = this.physics.add.staticGroup();
     this.建瓦片集();
@@ -550,13 +543,12 @@ export class OfficeMapScene extends Phaser.Scene {
     this.建主角();
     this.建镜头();
     this.建输入();
+    this.建点地寻路();
     this.建指引线();
     this.找门();
     this.建门框碰撞();
   }
-
   /* ───────── 搭建 ───────── */
-
   /** 把 6 张瓦片拼成一张 6 格的 tileset 贴图 */
   private 建瓦片集(): void {
     const 序 = ['t0','t1','t2','t3','t4','t5','t6','t7','t8','t9','t10','t11','t12','t13','t14','t15','t16'];
@@ -573,7 +565,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const tex = this.textures.addCanvas('地图瓦片集', cv);
     tex?.setFilter(Phaser.Textures.FilterMode.NEAREST);
   }
-
   /**
    * 墙的遮挡层。
    *
@@ -602,7 +593,6 @@ export class OfficeMapScene extends Phaser.Scene {
       }
     }
   }
-
   private 建图层(): void {
     // 直接用 level.ts 的网格数据，场景里不再重复一份地图
     const map = this.make.tilemap({ data: 网格, tileWidth: 格, tileHeight: 格 });
@@ -616,7 +606,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.图层.setCollision(挡路瓦片);
     this.图层.setDepth(-100);
   }
-
   private 建动画(): void {
     // 四方向行走：每行 4 帧
     const 名 = ['下', '上', '左', '右'];
@@ -631,7 +620,6 @@ export class OfficeMapScene extends Phaser.Scene {
       });
     });
   }
-
   /** 坐姿打字循环（每个角色一套）
    *  **两套动画**：
    *    `坐_<名>`   = 背面坐姿（工位上背对走廊）
@@ -660,7 +648,6 @@ export class OfficeMapScene extends Phaser.Scene {
       }
     }
   }
-
   private 建道具(): void {
     for (const p of 道具表) {
       const { x, y } = this.格到像素(p.x, p.y);
@@ -676,17 +663,14 @@ export class OfficeMapScene extends Phaser.Scene {
       //    元素摆在墙上面那几行时深度天然更小、会被墙吃掉）。
       const 加 = (p.桌面 ? 0.5 : p.图 === 'prop_ws_转椅' ? 2 : 0) + (p.深度加 ?? 0);
       s.setDepth(y + 加);
-
       // 桌面小件不挡路（它们摆在桌面上，人撞不到）
       if (p.桌面) continue;
-
       // 家具：加一个**贴地的占地**静态碰撞体。
       // ⚠️ 不能拿整张 44×48 的精灵当碰撞体 —— 那样人离桌子还有半个身位就被挡住。
       const [宽, 高] = 占地表[p.图] ?? [s.width * 0.85, s.height * 0.4];
       this.加占地(s, 宽, 高);
     }
   }
-
   /** 给一个"脚底在 (x,y)"的对象加贴地静态碰撞体 */
   private 加占地(
     目标: Phaser.GameObjects.Image | Phaser.GameObjects.Sprite,
@@ -702,11 +686,9 @@ export class OfficeMapScene extends Phaser.Scene {
     body.updateCenter();
     this.挡路.add(目标);
   }
-
   private 建NPC(): void {
     this.建NPC批(取NPC(this.段号));
   }
-
   /** 按剧情换一批同事站位（销毁旧的、建新的） */
   换NPC(段号: number): void {
     this.段号 = 段号;
@@ -714,7 +696,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.NPC们 = [];
     this.建NPC批(取NPC(段号));
   }
-
   private 建NPC批(排布: NPC位[]): void {
     for (const n of 排布) {
       const { x, y } = this.格到像素(n.x, n.y);
@@ -727,8 +708,16 @@ export class OfficeMapScene extends Phaser.Scene {
       // ⚠️ 坐姿的"位置 / 姿势 / 深度"**一律走 `放到座位上()`**（用户要求
       //    "查看其他同事用同一个逻辑"）：主角坐下走的也是这个函数，
       //    所以同事和主角不可能出现"一个坐得高一个坐得低""一个被挡住一个没挡住"。
-      if (能坐 && 座) this.放到座位上(s, 座, n.名);
-      else s.setOrigin(0.5, 1);
+      if (能坐 && 座) {
+        this.放到座位上(s, 座, n.名);
+      } else {
+        // ⚠️⚠️ **站着的同事也必须给深度**（= 脚底 y，和主角 `走()` 同一条规则）。
+        //    这个漏了会很难发现：坐下的同事走 `放到座位上()` 拿到了深度，
+        //    站着的同事深度停在 0 → **被画在所有道具后面**。
+        //    实测：会议室里的周岚（站位 (6,7)，不是座位）深度 0，而会议长桌 224 ——
+        //    她的头整个被桌子吃掉（用户报的"会议式的主管显示没有头"）。
+        s.setOrigin(0.5, 1).setDepth(y);
+      }
       // 名字挂在精灵上：靠过去弹人物卡时要按名字查人物卡库
       s.setData('名', n.名);
       // 同事也挡路（不能从人身上穿过去）
@@ -741,7 +730,6 @@ export class OfficeMapScene extends Phaser.Scene {
       this.NPC们.push(s);
     }
   }
-
   private 建主角(): void {
     const { x, y } = this.格到像素(出生点.x, 出生点.y);
     this.脚下影 = this.add.ellipse(x, y, 20, 7, 0x14161c, 0.28);
@@ -756,7 +744,6 @@ export class OfficeMapScene extends Phaser.Scene {
     // 家具和同事都挡路：人不能穿模
     this.physics.add.collider(this.主角, this.挡路);
   }
-
   private 建镜头(): void {
     this.physics.world.setBounds(0, 0, 图宽, 图高);
     const cam = this.cameras.main;
@@ -765,7 +752,6 @@ export class OfficeMapScene extends Phaser.Scene {
     cam.startFollow(this.主角, true, 0.12, 0.12);
     cam.setBackgroundColor('#262a33');
   }
-
   private 建输入(): void {
     if (!this.input.keyboard) return;
     this.光标 = this.input.keyboard.createCursorKeys();
@@ -775,14 +761,30 @@ export class OfficeMapScene extends Phaser.Scene {
     this.WASD = this.input.keyboard.addKeys('W,A,S,D') as Record<string, Phaser.Input.Keyboard.Key>;
     this.input.keyboard.addCapture('UP,DOWN,LEFT,RIGHT,W,A,S,D');
   }
-
+  /**
+   * **点地面 → 自己走过去**（手机上的主要移动方式）。
+   *
+   * ⚠️ 复用场景里已有的 A*（`找路()`）—— 那条路和"玩家真能走的路"是同一套判据，
+   *    所以不会出现"自动走卡在墙角"这种事。键盘/摇杆一动就放弃自动走（见 `走()`）。
+   */
+  private 建点地寻路(): void {
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      // 不用判"在不在 map 这一屏"：这个监听挂在本场景上，场景一关 Phaser 自己就摘了
+      const 我 = this.像素到格(this.主角.x, this.主角.y);
+      const 到 = this.像素到格(p.worldX, p.worldY);
+      if (我.x === 到.x && 我.y === 到.y) return;
+      const 路 = this.找路(我.x, 我.y, 到.x, 到.y);
+      if (路 && 路.length) {
+        this.自动路 = 路;
+        松摇杆(); // 别让摇杆里的残余向量和自动走打架
+      }
+    });
+  }
   private 建指引线(): void {
     this.指引线 = this.add.graphics();
     this.指引线.setDepth(99999);
   }
-
   /* ───────── 每帧 ───────── */
-
   update(): void {
     this.走();
     this.排序遮挡();
@@ -791,7 +793,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.查站在座位上();
     this.画指引线();
   }
-
   /**
    * 报"玩家附近有没有**空座位**"（决定按空格是坐下/站起来，还是普通交互）。
    *
@@ -806,7 +807,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.上次在座位 = 在座位;
     this.回调?.站在座位上变了?.(在座位, 位);
   }
-
   /**
    * 报"玩家旁边是什么东西" —— 给地图上的**道具卡**用（用户要求"一靠近就显示"）。
    *
@@ -827,12 +827,10 @@ export class OfficeMapScene extends Phaser.Scene {
     this.查附近人(换格了);
     if (!换格了) return;
     this.上次格 = 键;
-
     const 脚x = this.主角.x;
     const 脚y = this.主角.y;
     const 横容 = 格 / 2 + 10;
     const 纵容 = 格 * 1.25;
-
     let 最好: 附近物 | null = null;
     let 最好距 = Infinity;
     for (const p of 道具表) {
@@ -847,7 +845,6 @@ export class OfficeMapScene extends Phaser.Scene {
         最好 = { 种类: '道具', 键: p.图 };
       }
     }
-
     // 门 / 玻璃：按格子认（同一格或紧邻的一格）
     if (!最好 || 最好距 > 6) {
       for (const [x, y] of [
@@ -869,11 +866,9 @@ export class OfficeMapScene extends Phaser.Scene {
         }
       }
     }
-
     // 站在工位格 / 同格有小件 → 用"同格优先"那件（桌/椅/键盘挤一起时，桌子才是玩家关心的）
     const 优先 = this.同格优先();
     if (优先) 最好 = 优先;
-
     const 没变 =
       (最好 === null && this.当前附近物 === null) ||
       (最好 !== null && this.当前附近物 !== null && 最好.键 === this.当前附近物.键);
@@ -881,7 +876,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.当前附近物 = 最好;
     this.回调?.附近道具变了?.(最好);
   }
-
   /**
    * 报"旁边是哪位同事" —— 给地图上的**人物卡**用。
    *
@@ -912,7 +906,6 @@ export class OfficeMapScene extends Phaser.Scene {
     this.当前附近人 = 谁;
     this.回调?.附近人变了?.(谁);
   }
-
   /**
    * 挤在同一格的"小件 / 大件"里，挑玩家最可能想了解的那件。
    *
@@ -930,7 +923,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const 小件 = 道具表.find((p) => p.桌面 && p.x === 位.x && p.y === 位.y);
     return 小件 ? { 种类: '道具', 键: 小件.图 } : null;
   }
-
   private 走(): void {
     const b = this.主角.body as Phaser.Physics.Arcade.Body | null;
     if (!b) return;
@@ -939,27 +931,59 @@ export class OfficeMapScene extends Phaser.Scene {
     const 右 = (this.光标?.right.isDown ?? false) || (键.D?.isDown ?? false);
     const 上 = (this.光标?.up.isDown ?? false) || (键.W?.isDown ?? false);
     const 下 = (this.光标?.down.isDown ?? false) || (键.S?.isDown ?? false);
-
+    // 移动端摇杆：和键盘**同一个入口**（DOM 写 虚拟输入，这里每帧读）
+    const 杆x = 虚拟输入.x;
+    const 杆y = 虚拟输入.y;
+    const 有杆 = Math.abs(杆x) > 0.15 || Math.abs(杆y) > 0.15;
+    // 只要玩家自己动了（按键或推杆），就放弃"点地自动走"
+    if (左 || 右 || 上 || 下 || 有杆) this.自动路 = null;
     let vx = 0;
     let vy = 0;
-    if (左) vx -= 1;
-    if (右) vx += 1;
-    if (上) vy -= 1;
-    if (下) vy += 1;
-
-    if (vx !== 0 && vy !== 0) {
-      // 斜着走归一化，不然会更快
-      vx *= 0.7071;
-      vy *= 0.7071;
+    if (有杆) {
+      vx = 杆x;
+      vy = 杆y;
+    } else if (左 || 右 || 上 || 下) {
+      if (左) vx -= 1;
+      if (右) vx += 1;
+      if (上) vy -= 1;
+      if (下) vy += 1;
+    } else if (this.自动路?.length) {
+      // ── 点地自动走：朝"下一格的中心"走，到了就换下一格 ──
+      const 下一 = this.自动路[0];
+      const 点 = this.格到像素(下一.x, 下一.y);
+      const dx = 点.x - this.主角.x;
+      const dy = 点.y - this.主角.y;
+      const 距 = Math.hypot(dx, dy);
+      if (距 < 6) {
+        this.自动路.shift();
+        if (!this.自动路.length) this.自动路 = null;
+      } else {
+        vx = dx / 距;
+        vy = dy / 距;
+      }
+    }
+    // 归一化：斜着走不能更快（摇杆本来就是单位向量，键盘的 1,1 要压到 0.707）
+    const 长 = Math.hypot(vx, vy);
+    if (长 > 0) {
+      vx /= 长;
+      vy /= 长;
     }
     b.setVelocity(vx * 速度, vy * 速度);
-
     // 朝向：左右优先（横着走时更能看出侧的姿势）
-    if (vx < 0) this.朝向 = 2;
-    else if (vx > 0) this.朝向 = 3;
-    else if (vy < 0) this.朝向 = 1;
-    else if (vy > 0) this.朝向 = 0;
-
+    /**
+     * 朝向：**主轴优先**。
+     *
+     * ⚠️⚠️ 原来是"左右优先"（`if (vx<0) 左; else if (vy<0) 上`）。
+     *    键盘下 vx 恰好是 0，所以一直没暴露；
+     *    但**摇杆是模拟量** —— 实测"直着往上推、拇指横偏 12%"就会被判成**朝右走路**
+     *    （用户报的"移动端向上下走只显示左右走动的动画"）。
+     *    现在要横向明显大于纵向（1.25 倍）才判左右；
+     *    两者接近（斜着推）时**保持上一次朝向**，避免左右横跳。
+     */
+    const 横 = Math.abs(vx);
+    const 纵 = Math.abs(vy);
+    if (横 > 纵 * 1.25) this.朝向 = vx < 0 ? 2 : 3;
+    else if (纵 > 横 * 1.25) this.朝向 = vy < 0 ? 1 : 0;
     const 在走 = vx !== 0 || vy !== 0;
     // ⚠️ 坐着的时候一按方向键就**站起来**（不用额外按键，和大多数游戏一样）
     if (在走 && this.主角坐着) this.站起来();
@@ -975,7 +999,6 @@ export class OfficeMapScene extends Phaser.Scene {
       this.主角.anims.stop();
       this.主角.setTexture('lks_idle', this.朝向);
     }
-
     const 影子 = { x: this.主角.x, y: this.主角.y - 1 };
     报位置(this.主角.x, this.主角.y);
     this.脚下影.setPosition(影子.x, 影子.y);
@@ -985,12 +1008,10 @@ export class OfficeMapScene extends Phaser.Scene {
     //    下一帧变回 660，椅子又把整个人盖住 —— 就是这么来的）。
     this.主角.setDepth(this.坐的座位?.套 === 'front' ? this.主角.y + 40 : this.主角.y);
   }
-
   /** 按脚底 y 排深度，主角走到家具后面会被挡住 */
   private 排序遮挡(): void {
     // 主角自己在 走() 里已设；NPC 与道具建好就固定了，这里不用每帧做
   }
-
   /** 找出最近的交互点，变化时通知 React */
   private 查交互(): void {
     let 最近: 交互点 | null = null;
@@ -1020,7 +1041,6 @@ export class OfficeMapScene extends Phaser.Scene {
     //    实测自动化点不到、真人也要先点一下画布才行。改由 React 层统一处理
     //    （见 MapScreen：那边已经有 附近交互点 这个状态，判起来更直接）。
   }
-
   /**
    * 通行表：每格能不能走（墙 / 玻璃 / 关着的门 → 不能走）。
    * 门一开关就要重算，所以缓存在字段里，`开关门()` 里置空。
@@ -1032,7 +1052,6 @@ export class OfficeMapScene extends Phaser.Scene {
         t[y * 地图宽 + x] = 挡路瓦片.includes(网格[y][x]) ? 0 : 1;
       }
     }
-
     // ⚠️ **家具也要算进去**。
     //    只按瓦片算的话，指引线会直接从文化墙、接待台、办公桌里穿过去 ——
     //    因为那些是"道具"，不在瓦片层里。
@@ -1057,12 +1076,10 @@ export class OfficeMapScene extends Phaser.Scene {
     }
     return t;
   }
-
   private 取通行表(): Uint8Array {
     if (!this.通行表) this.通行表 = this.造通行表();
     return this.通行表;
   }
-
   /**
    * A* 找路（四方向）。
    *
@@ -1083,7 +1100,6 @@ export class OfficeMapScene extends Phaser.Scene {
     const 键 = (x: number, y: number): number => y * 地图宽 + x;
     const 在图内 = (x: number, y: number): boolean => x >= 0 && y >= 0 && x < 地图宽 && y < 地图高;
     if (!在图内(终x, 终y) || !在图内(起x, 起y)) return null;
-
     // 目标格如果本身不可走（比如站在家具上），退而求其次找它周围能走的格
     let 目标x = 终x;
     let 目标y = 终y;
@@ -1098,7 +1114,6 @@ export class OfficeMapScene extends Phaser.Scene {
       目标x = 候选[0];
       目标y = 候选[1];
     }
-
     const 开表: number[] = [键(起x, 起y)];
     const 来路 = new Map<number, number>();
     const g分 = new Map<number, number>([[键(起x, 起y), 0]]);
@@ -1116,7 +1131,6 @@ export class OfficeMapScene extends Phaser.Scene {
       [0, 1, 2],
       [0, -1, 3],
     ];
-
     while (开表.length) {
       // 取 f 最小的（格子少，线性扫足够快）
       let 最好 = 0;
@@ -1162,7 +1176,6 @@ export class OfficeMapScene extends Phaser.Scene {
     }
     return null;
   }
-
   /**
    * 指引线：从主角**拉一条直线**指向目标（流动绿点）。
    *
@@ -1180,15 +1193,12 @@ export class OfficeMapScene extends Phaser.Scene {
     g.clear();
     const 目标 = this.目标;
     if (!目标) return;
-
     const 起x = this.主角.x;
     const 起y = this.主角.y - 6; // 从胸口起画，不从脚底
     const 终x = 目标.x * 格 + 格 / 2;
     const 终y = 目标.y * 格 + 格;
-
     const 距 = Phaser.Math.Distance.Between(起x, 起y, 终x, 终y);
     if (距 < 交互半径) return; // 已经到了就只留目标圈（不再画线）
-
     // 沿这条直线按固定间距铺流动的绿点
     const 步 = 9;
     const 流 = (this.time.now / 40) % 步;
@@ -1203,16 +1213,17 @@ export class OfficeMapScene extends Phaser.Scene {
       g.fillStyle(0x4a8f4f, 0.55 + 0.45 * 近); // 高亮墨绿
       g.fillRect(Math.round(x) - 1, Math.round(y) - 1, 3, 3);
     }
-
     // 目标处画一个呼吸的绿圈
     const r = 8 + Math.sin(this.time.now / 220) * 2;
     g.lineStyle(2, 0x2f5d3a, 1); // 墨绿
     g.strokeCircle(终x, 终y, r);
   }
-
   /* ───────── 工具 ───────── */
-
   private 格到像素(x: number, y: number): { x: number; y: number } {
     return { x: x * 格 + 格 / 2, y: y * 格 + 格 };
+  }
+  /** `格到像素()` 的反算（注意 y 那半边是"贴底"的，所以和 x 不是一个式子） */
+  private 像素到格(x: number, y: number): { x: number; y: number } {
+    return { x: Math.floor(x / 格), y: Math.floor((y - 1) / 格) };
   }
 }
